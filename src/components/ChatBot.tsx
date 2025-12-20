@@ -196,7 +196,7 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
   return (
     <div 
       ref={chatContainerRef}
-      className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 w-full sm:w-80 h-full sm:h-[500px] bg-slate-900 sm:rounded-xl border border-slate-700 shadow-2xl flex flex-col z-50"
+      className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-24 w-full sm:w-72 h-full sm:h-[500px] bg-slate-900 sm:rounded-xl border border-slate-700 shadow-2xl flex flex-col z-40"
       style={{ 
         maxWidth: '100vw',
         overflow: 'hidden',
