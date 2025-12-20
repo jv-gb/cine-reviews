@@ -1,6 +1,7 @@
+/// <reference types="vite/client" />
 import axios from 'axios';
 
-const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || 'sua_chave_api_aqui';
+const TMDB_API_KEY = (import.meta.env.VITE_TMDB_API_KEY as string | undefined) ?? 'sua_chave_api_aqui';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 
@@ -85,7 +86,6 @@ export interface TMDBWatchProvider {
 }
 
 class TMDBService {
-  // Buscar filmes populares
   async getPopularMovies(): Promise<TMDBMovie[]> {
     try {
       const response = await tmdbApi.get('/movie/popular');
@@ -96,7 +96,6 @@ class TMDBService {
     }
   }
 
-  // Buscar filmes por gênero
   async getMoviesByGenre(genreId: number): Promise<TMDBMovie[]> {
     try {
       const response = await tmdbApi.get('/discover/movie', {
@@ -112,7 +111,6 @@ class TMDBService {
     }
   }
 
-  // Buscar filme por ID
   async getMovieById(id: number): Promise<TMDBMovieDetails | null> {
     try {
       const response = await tmdbApi.get(`/movie/${id}`, {
@@ -127,7 +125,6 @@ class TMDBService {
     }
   }
 
-  // Buscar onde assistir
   async getWatchProviders(movieId: number): Promise<string[]> {
     try {
       const response = await tmdbApi.get<TMDBWatchProvider>(
@@ -160,7 +157,6 @@ class TMDBService {
     }
   }
 
-  // Buscar filmes por nome
   async searchMovies(query: string): Promise<TMDBMovie[]> {
     try {
       const response = await tmdbApi.get('/search/movie', {
@@ -175,7 +171,6 @@ class TMDBService {
     }
   }
 
-  // Buscar lista de gêneros
   async getGenres(): Promise<TMDBGenre[]> {
     try {
       const response = await tmdbApi.get('/genre/movie/list');
@@ -186,7 +181,6 @@ class TMDBService {
     }
   }
 
-  // Buscar filmes em alta
   async getTrendingMovies(): Promise<TMDBMovie[]> {
     try {
       const response = await tmdbApi.get('/trending/movie/week');

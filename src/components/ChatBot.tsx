@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Movie } from '../data/mockData';
+import { Movie } from '../types/movie';
 import { Send, Bot, User, Loader2, RefreshCw, X } from 'lucide-react';
 
 interface Message {
@@ -28,10 +28,25 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Fechar o chat ao clicar fora (apenas em mobile)
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (isOpen && window.innerWidth < 640 && 
+          chatContainerRef.current && 
+          !chatContainerRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onClose]);
 
   const getBotResponse = (userMessage: string): string => {
     const msg = userMessage.toLowerCase();
@@ -179,27 +194,35 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-24 right-6 w-96 h-[600px] bg-slate-900 rounded-lg border border-slate-700 shadow-2xl flex flex-col">
-      <div className="p-4 border-b border-slate-800 bg-slate-900">
+    <div 
+      ref={chatContainerRef}
+      className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-6 w-full sm:w-80 h-full sm:h-[500px] bg-slate-900 sm:rounded-xl border border-slate-700 shadow-2xl flex flex-col z-50"
+      style={{ 
+        maxWidth: '100vw',
+        overflow: 'hidden',
+      }}
+    >
+      <div className="p-4 border-b border-slate-800 bg-slate-900 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Bot className="w-8 h-8 text-blue-500" />
+            <Bot className="w-6 h-6 sm:w-7 sm:h-7 text-blue-500" />
             <div>
-              <h3 className="text-white font-bold">CineBot</h3>
-              <p className="text-slate-400 text-sm">Assistente de filmes</p>
+              <h3 className="text-white font-bold text-sm sm:text-base">CineBot</h3>
+              <p className="text-slate-400 text-xs sm:text-sm">Assistente de filmes</p>
             </div>
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleClearChat}
-              className="p-2 hover:bg-slate-800 rounded"
-              title="Limpar"
+              className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
+              title="Limpar conversa"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-slate-800 rounded"
+              className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors"
+              title="Fechar chat"
             >
               <X className="w-4 h-4" />
             </button>
@@ -207,28 +230,28 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3" style={{ overflowX: 'hidden' }}>
         {messages.map((message) => (
           <div
             key={message.id}
-            className={`flex gap-3 ${message.sender === 'user' ? 'flex-row-reverse' : ''}`}
+            className={`flex gap-2 sm:gap-2 ${message.sender === 'user' ? 'flex-row-reverse' : ''}`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            <div className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center ${
               message.sender === 'user' ? 'bg-blue-600' : 'bg-slate-700'
             }`}>
               {message.sender === 'user' ? (
-                <User className="w-4 h-4 text-white" />
+                <User className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-white" />
               ) : (
-                <Bot className="w-4 h-4 text-blue-400" />
+                <Bot className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400" />
               )}
             </div>
             
-            <div className={`max-w-[80%] rounded-lg p-3 ${
+            <div className={`max-w-[calc(100%-60px)] sm:max-w-[85%] rounded-lg p-2.5 ${
               message.sender === 'user'
                 ? 'bg-blue-600 text-white'
                 : 'bg-slate-800 text-slate-200'
-            }`}>
-              <div className="text-sm whitespace-pre-line">{message.text}</div>
+            }`} style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              <div className="text-sm whitespace-pre-line leading-relaxed">{message.text}</div>
               <div className="text-xs opacity-60 mt-1">
                 {message.timestamp.toLocaleTimeString('pt-BR', {
                   hour: '2-digit',
@@ -241,7 +264,7 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-4 border-t border-slate-800">
+      <div className="p-3 border-t border-slate-800 flex-shrink-0">
         <div className="flex gap-2">
           <input
             type="text"
@@ -249,18 +272,20 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Digite sua pergunta..."
-            className="flex-1 px-4 py-2 bg-slate-800 border border-slate-700 rounded text-white"
+            className="flex-1 px-3 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+            style={{ maxWidth: 'calc(100% - 44px)' }}
             disabled={isLoading}
           />
           <button
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
-            className="px-4 bg-blue-600 hover:bg-blue-700 text-white rounded disabled:opacity-50"
+            className="px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+            style={{ width: '44px', flexShrink: 0 }}
           >
             {isLoading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Send className="w-5 h-5" />
+              <Send className="w-4 h-4" />
             )}
           </button>
         </div>

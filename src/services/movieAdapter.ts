@@ -1,4 +1,5 @@
-import { Movie, Review } from '../data/mockData';
+// src/services/movieAdapter.ts
+import { Movie } from '../types/movie';
 import { TMDBMovie, TMDBMovieDetails } from './tmdb';
 
 export class MovieAdapter {
