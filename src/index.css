@@ -1,34 +1,21 @@
-/* C:\Users\joao victor\Desktop\movie-site\src\index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Suas classes utilitárias personalizadas */
 .line-clamp-1 {
   overflow: hidden;
   display: -webkit-box;
-  -webkit-box-orient: vertical;
   -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
 }
 
 .line-clamp-2 {
   overflow: hidden;
   display: -webkit-box;
-  -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-/* Animações */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.5s ease-in-out;
-}
-
-/* Scrollbar customizada */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -46,8 +33,11 @@
   background: #64748b;
 }
 
-/* Estilos globais */
-body {
-  background-color: #020617; /* slate-950 */
-  color: white;
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-in-out;
 }

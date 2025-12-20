@@ -1,4 +1,3 @@
-// App.tsx
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { MovieGrid } from './components/MovieGrid';
@@ -23,10 +22,8 @@ export default function App() {
         setLoading(true);
         setError(null);
         
-        // Buscar filmes populares do TMDB
         const tmdbMovies = await tmdbService.getPopularMovies();
         
-        // Converter para o formato da nossa aplicação
         const convertedMovies: Movie[] = await Promise.all(
           tmdbMovies.map(async (tmdbMovie) => {
             const providers = await tmdbService.getWatchProviders(tmdbMovie.id);
@@ -46,7 +43,6 @@ export default function App() {
     loadMovies();
   }, []);
 
-  // Função para adicionar review a um filme
   const handleAddReview = (movieId: string, review: Review) => {
     setMovies(prevMovies =>
       prevMovies.map(movie =>
@@ -62,7 +58,6 @@ export default function App() {
       )
     );
 
-    // Atualiza o filme selecionado se for o mesmo
     if (selectedMovie && selectedMovie.id === movieId) {
       setSelectedMovie(prev => {
         if (!prev) return prev;
@@ -77,16 +72,13 @@ export default function App() {
     }
   };
 
-  // Função para buscar detalhes completos de um filme
   const handleSelectMovie = async (movie: Movie) => {
     try {
-      // Buscar detalhes completos do filme
       const tmdbMovieDetails = await tmdbService.getMovieById(parseInt(movie.id));
       const providers = await tmdbService.getWatchProviders(parseInt(movie.id));
       
       if (tmdbMovieDetails) {
         const detailedMovie = MovieAdapter.fromTMDBToMovie(tmdbMovieDetails, providers);
-        // Manter os reviews existentes
         detailedMovie.userReviews = movie.userReviews;
         setSelectedMovie(detailedMovie);
       } else {
@@ -98,7 +90,6 @@ export default function App() {
     }
   };
 
-  // Função para voltar à lista de filmes
   const handleBackToList = () => {
     setSelectedMovie(null);
   };
@@ -151,7 +142,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Botão do ChatBot */}
       <button
         onClick={() => setIsChatOpen(!isChatOpen)}
         className={`fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-2xl transition-all duration-300 hover:scale-110 ${
@@ -168,7 +158,6 @@ export default function App() {
         )}
       </button>
 
-      {/* ChatBot Component */}
       <ChatBot 
         movies={movies} 
         isOpen={isChatOpen} 

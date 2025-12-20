@@ -1,9 +1,17 @@
-// src/services/tmdb.ts
 import axios from 'axios';
 
-const TMDB_API_KEY = 'SUA_CHAVE_API_AQUI'; // ← Coloque sua chave aqui
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || 'sua_chave_api_aqui';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+
+if (!TMDB_API_KEY || TMDB_API_KEY === 'sua_chave_api_aqui') {
+  console.error(
+    '❌ ERRO: Chave da API do TMDB não configurada!\n' +
+    'Por favor, crie um arquivo .env na raiz do projeto com:\n' +
+    'VITE_TMDB_API_KEY=sua_chave_aqui\n\n' +
+    'Obtenha uma chave em: https://www.themoviedb.org/settings/api'
+  );
+}
 
 const tmdbApi = axios.create({
   baseURL: TMDB_BASE_URL,
@@ -81,7 +89,7 @@ class TMDBService {
   async getPopularMovies(): Promise<TMDBMovie[]> {
     try {
       const response = await tmdbApi.get('/movie/popular');
-      return response.data.results.slice(0, 12); // Limita a 12 filmes
+      return response.data.results.slice(0, 12);
     } catch (error) {
       console.error('Erro ao buscar filmes populares:', error);
       return [];
@@ -145,7 +153,7 @@ class TMDBService {
         );
       }
       
-      return [...new Set(streamingServices)]; // Remove duplicatas
+      return [...new Set(streamingServices)];
     } catch (error) {
       console.error('Erro ao buscar provedores:', error);
       return [];
