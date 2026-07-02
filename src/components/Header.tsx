@@ -1,8 +1,9 @@
 import { Compass, Film, Home, Info, MessageCircle, Search, Sparkles, Star } from 'lucide-react';
 
-type SectionId = 'hero' | 'recomendacoes' | 'avaliacoes' | 'catalogo' | 'sobre';
+export type SectionId = 'hero' | 'recomendacoes' | 'minha-lista' | 'avaliacoes' | 'catalogo' | 'sobre';
 
 interface HeaderProps {
+  activeSection: SectionId;
   searchQuery: string;
   onSearchChange: (value: string) => void;
   onNavigate: (sectionId: SectionId) => void;
@@ -13,12 +14,14 @@ interface HeaderProps {
 const navItems: Array<{ id: SectionId; label: string; icon: typeof Home }> = [
   { id: 'hero', label: 'Início', icon: Home },
   { id: 'recomendacoes', label: 'Recomendações', icon: Sparkles },
+  { id: 'minha-lista', label: 'Minha Lista', icon: Film },
   { id: 'avaliacoes', label: 'Avaliações', icon: Star },
   { id: 'catalogo', label: 'Catálogo', icon: Compass },
   { id: 'sobre', label: 'Sobre', icon: Info },
 ];
 
 export function Header({
+  activeSection,
   searchQuery,
   onSearchChange,
   onNavigate,
@@ -41,7 +44,7 @@ export function Header({
               <div>
                 <h1 className="text-2xl font-black text-white">CineReviews</h1>
                 <p className="text-slate-400 text-sm">
-                  Navegue por filmes, encontre recomendações e publique reviews.
+                  Descubra filmes, salve favoritos e publique reviews.
                 </p>
               </div>
             </button>
@@ -60,17 +63,25 @@ export function Header({
 
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <nav className="hidden md:flex flex-wrap gap-2 items-center">
-              {navItems.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => onNavigate(id)}
-                  className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-slate-300 transition hover:bg-white/10 hover:text-white"
-                >
-                  <Icon className="h-4 w-4" />
-                  {label}
-                </button>
-              ))}
+              {navItems.map(({ id, label, icon: Icon }) => {
+                const isActive = activeSection === id && !isMovieSelected;
+
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onNavigate(id)}
+                    className={`inline-flex items-center gap-2 rounded-full px-4 py-2 transition ${
+                      isActive
+                        ? 'bg-sky-400 text-slate-950'
+                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </button>
+                );
+              })}
               <button
                 type="button"
                 onClick={onOpenChat}
@@ -83,17 +94,25 @@ export function Header({
 
             <div className="md:hidden -mx-1 flex overflow-x-auto pb-1">
               <div className="flex gap-2 px-1">
-                {navItems.map(({ id, label, icon: Icon }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => onNavigate(id)}
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 px-4 py-2 text-sm whitespace-nowrap text-slate-200"
-                  >
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </button>
-                ))}
+                {navItems.map(({ id, label, icon: Icon }) => {
+                  const isActive = activeSection === id && !isMovieSelected;
+
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => onNavigate(id)}
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm whitespace-nowrap transition ${
+                        isActive
+                          ? 'bg-sky-400 text-slate-950'
+                          : 'border border-white/10 bg-slate-900/60 text-slate-200'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  );
+                })}
                 <button
                   type="button"
                   onClick={onOpenChat}
@@ -107,8 +126,8 @@ export function Header({
 
             <div className="text-sm text-slate-400">
               {isMovieSelected
-                ? 'Você está vendo a tela de detalhes. Use a navegação para voltar a explorar o catálogo.'
-                : 'Digite pelo menos 2 letras para usar a busca inteligente por nome.'}
+                ? 'Você está vendo os detalhes de um filme. Use a navegação para voltar às seções da home.'
+                : 'Use a busca, monte sua lista e explore as seções para testar melhor o fluxo do site.'}
             </div>
           </div>
         </div>

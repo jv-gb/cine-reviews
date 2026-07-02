@@ -6,11 +6,21 @@ interface MovieGridProps {
   title: string;
   description: string;
   movies: Movie[];
+  watchlistIds: string[];
   emptyMessage: string;
   onSelectMovie: (movie: Movie) => void;
+  onToggleWatchlist: (movieId: string) => void;
 }
 
-export function MovieGrid({ title, description, movies, emptyMessage, onSelectMovie }: MovieGridProps) {
+export function MovieGrid({
+  title,
+  description,
+  movies,
+  watchlistIds,
+  emptyMessage,
+  onSelectMovie,
+  onToggleWatchlist,
+}: MovieGridProps) {
   return (
     <section className="space-y-6">
       <div>
@@ -28,7 +38,13 @@ export function MovieGrid({ title, description, movies, emptyMessage, onSelectMo
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {movies.map((movie) => (
-            <MovieCard key={movie.id} movie={movie} onClick={() => onSelectMovie(movie)} />
+            <MovieCard
+              key={movie.id}
+              movie={movie}
+              isInWatchlist={watchlistIds.includes(movie.id)}
+              onClick={() => onSelectMovie(movie)}
+              onToggleWatchlist={() => onToggleWatchlist(movie.id)}
+            />
           ))}
         </div>
       )}

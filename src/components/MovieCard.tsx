@@ -3,10 +3,12 @@ import { Movie } from '../types/movie';
 
 interface MovieCardProps {
   movie: Movie;
+  isInWatchlist: boolean;
   onClick: () => void;
+  onToggleWatchlist: () => void;
 }
 
-export function MovieCard({ movie, onClick }: MovieCardProps) {
+export function MovieCard({ movie, isInWatchlist, onClick, onToggleWatchlist }: MovieCardProps) {
   return (
     <button
       type="button"
@@ -25,7 +27,7 @@ export function MovieCard({ movie, onClick }: MovieCardProps) {
           }}
         />
 
-        <div className="absolute inset-x-0 top-0 p-3 flex items-start justify-between">
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between p-3">
           <div className="rounded-full bg-black/70 px-3 py-1 text-xs font-medium text-white backdrop-blur">
             {movie.year}
           </div>
@@ -34,6 +36,22 @@ export function MovieCard({ movie, onClick }: MovieCardProps) {
             {movie.averageRating.toFixed(1)}
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleWatchlist();
+          }}
+          className={`absolute bottom-3 right-3 rounded-full px-3 py-1.5 text-xs font-semibold backdrop-blur transition ${
+            isInWatchlist
+              ? 'bg-emerald-400 text-slate-950'
+              : 'bg-black/70 text-white hover:bg-black/85'
+          }`}
+          aria-label={isInWatchlist ? `Remover ${movie.title} da sua lista` : `Salvar ${movie.title} na sua lista`}
+        >
+          {isInWatchlist ? 'Na lista' : 'Salvar'}
+        </button>
 
         <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent opacity-0 transition duration-300 group-hover:opacity-100">
           <div className="mb-6 text-center text-white">
@@ -44,11 +62,9 @@ export function MovieCard({ movie, onClick }: MovieCardProps) {
       </div>
 
       <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-bold text-white line-clamp-2">{movie.title}</h3>
-            <p className="mt-2 line-clamp-2 text-sm text-slate-400">{movie.officialSummary}</p>
-          </div>
+        <div>
+          <h3 className="text-xl font-bold text-white line-clamp-2">{movie.title}</h3>
+          <p className="mt-2 line-clamp-2 text-sm text-slate-400">{movie.officialSummary}</p>
         </div>
 
         <div className="mt-4 flex items-center gap-4 text-sm text-slate-400">
@@ -59,6 +75,9 @@ export function MovieCard({ movie, onClick }: MovieCardProps) {
           <span className="inline-flex items-center gap-1.5">
             <Clock className="h-4 w-4" />
             {movie.duration} min
+          </span>
+          <span className="truncate text-slate-500">
+            {movie.userReviews.length} review{movie.userReviews.length === 1 ? '' : 's'}
           </span>
         </div>
 
@@ -76,7 +95,7 @@ export function MovieCard({ movie, onClick }: MovieCardProps) {
         <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Direção</p>
-            <p className="mt-1 text-sm text-slate-200 truncate max-w-[160px]" title={movie.director}>
+            <p className="mt-1 max-w-[160px] truncate text-sm text-slate-200" title={movie.director}>
               {movie.director}
             </p>
           </div>

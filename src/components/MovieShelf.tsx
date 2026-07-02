@@ -5,10 +5,19 @@ interface MovieShelfProps {
   title: string;
   description: string;
   movies: Movie[];
+  watchlistIds: string[];
   onSelectMovie: (movie: Movie) => void;
+  onToggleWatchlist: (movieId: string) => void;
 }
 
-export function MovieShelf({ title, description, movies, onSelectMovie }: MovieShelfProps) {
+export function MovieShelf({
+  title,
+  description,
+  movies,
+  watchlistIds,
+  onSelectMovie,
+  onToggleWatchlist,
+}: MovieShelfProps) {
   if (movies.length === 0) return null;
 
   return (
@@ -22,7 +31,12 @@ export function MovieShelf({ title, description, movies, onSelectMovie }: MovieS
         <div className="flex gap-4 px-1">
           {movies.map((movie) => (
             <div key={movie.id} className="min-w-[260px] max-w-[260px] flex-shrink-0">
-              <MovieCard movie={movie} onClick={() => onSelectMovie(movie)} />
+              <MovieCard
+                movie={movie}
+                isInWatchlist={watchlistIds.includes(movie.id)}
+                onClick={() => onSelectMovie(movie)}
+                onToggleWatchlist={() => onToggleWatchlist(movie.id)}
+              />
             </div>
           ))}
         </div>

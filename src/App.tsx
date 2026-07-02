@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, BarChart3, Film, MessageCircle, Search, Sparkles, Star, Users, X } from 'lucide-react';
-import { Header } from './components/Header';
+import { Header, type SectionId } from './components/Header';
 import { MovieGrid } from './components/MovieGrid';
 import { MovieDetails } from './components/MovieDetails';
 import { ChatBot } from './components/ChatBot';
@@ -9,7 +9,46 @@ import { Movie, Review } from './types/movie';
 import { tmdbService } from './services/tmdb';
 import { MovieAdapter } from './services/movieAdapter';
 
-type SectionId = 'hero' | 'recomendacoes' | 'avaliacoes' | 'catalogo' | 'sobre';
+type CatalogSort = 'relevance' | 'rating' | 'year' | 'title';
+
+const REVIEWS_STORAGE_KEY = 'cine-reviews-user-reviews';
+const WATCHLIST_STORAGE_KEY = 'cine-reviews-watchlist';
+const RECENT_STORAGE_KEY = 'cine-reviews-recently-viewed';
+
+function readStorage<T>(key: string, fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+
+  const rawValue = window.localStorage.getItem(key);
+  if (!rawValue) return fallback;
+
+  try {
+    return JSON.parse(rawValue) as T;
+  } catch (error) {
+    console.error(`Não foi possível ler ${key}:`, error);
+    return fallback;
+  }
+}
+
+function calculateAverageRating(tmdbRating: number, reviews: Review[]) {
+  if (reviews.length === 0) return tmdbRating;
+
+  const reviewsTotal = reviews.reduce((acc, review) => acc + review.rating, 0);
+  return Number((((tmdbRating * 2) + reviewsTotal) / (reviews.length + 2)).toFixed(1));
+}
+
+function syncMovieWithReviews(movie: Movie, reviewsMap: Record<string, Review[]>) {
+  const reviews = reviewsMap[movie.id] ?? [];
+
+  return {
+    ...movie,
+    userReviews: reviews,
+    averageRating: calculateAverageRating(movie.tmdbRating, reviews),
+  };
+}
+
+function pushRecentMovie(movieIds: string[], movieId: string) {
+  return [movieId, ...movieIds.filter((id) => id !== movieId)].slice(0, 8);
+}
 
 export default function App() {
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
@@ -18,11 +57,22 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [selectedGenre, setSelectedGenre] = useState('Todos');
+  const [catalogSort, setCatalogSort] = useState<CatalogSort>('relevance');
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pendingSection, setPendingSection] = useState<SectionId | null>(null);
+  const [activeSection, setActiveSection] = useState<SectionId>('hero');
+  const [storedReviews, setStoredReviews] = useState<Record<string, Review[]>>(() =>
+    readStorage<Record<string, Review[]>>(REVIEWS_STORAGE_KEY, {})
+  );
+  const [watchlistIds, setWatchlistIds] = useState<string[]>(() =>
+    readStorage<string[]>(WATCHLIST_STORAGE_KEY, [])
+  );
+  const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>(() =>
+    readStorage<string[]>(RECENT_STORAGE_KEY, [])
+  );
 
   useEffect(() => {
     async function loadMovies() {
@@ -42,12 +92,12 @@ export default function App() {
         const popularMovies = await Promise.all(
           popularTmdbMovies.map(async (tmdbMovie) => {
             const providers = await tmdbService.getWatchProviders(tmdbMovie.id);
-            return MovieAdapter.fromTMDBToMovie(tmdbMovie, providers);
+            return syncMovieWithReviews(MovieAdapter.fromTMDBToMovie(tmdbMovie, providers), storedReviews);
           })
         );
 
         const trendingAdaptedMovies = trendingTmdbMovies.map((tmdbMovie) =>
-          MovieAdapter.fromTMDBToMovie(tmdbMovie)
+          syncMovieWithReviews(MovieAdapter.fromTMDBToMovie(tmdbMovie), storedReviews)
         );
 
         setMovies(popularMovies);
@@ -65,6 +115,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    window.localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(storedReviews));
+  }, [storedReviews]);
+
+  useEffect(() => {
+    window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlistIds));
+  }, [watchlistIds]);
+
+  useEffect(() => {
+    window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recentlyViewedIds));
+  }, [recentlyViewedIds]);
+
+  useEffect(() => {
+    setMovies((prevMovies) => prevMovies.map((movie) => syncMovieWithReviews(movie, storedReviews)));
+    setTrendingMovies((prevMovies) => prevMovies.map((movie) => syncMovieWithReviews(movie, storedReviews)));
+    setSearchResults((prevMovies) => prevMovies.map((movie) => syncMovieWithReviews(movie, storedReviews)));
+    setSelectedMovie((prevMovie) => (prevMovie ? syncMovieWithReviews(prevMovie, storedReviews) : prevMovie));
+  }, [storedReviews]);
+
+  useEffect(() => {
     const trimmedQuery = searchQuery.trim();
 
     if (trimmedQuery.length < 2) {
@@ -80,7 +149,7 @@ export default function App() {
         const tmdbResults = await tmdbService.searchMovies(trimmedQuery);
         const adaptedResults = tmdbResults
           .slice(0, 12)
-          .map((tmdbMovie) => mergeWithExistingReviews(MovieAdapter.fromTMDBToMovie(tmdbMovie)));
+          .map((tmdbMovie) => syncMovieWithReviews(MovieAdapter.fromTMDBToMovie(tmdbMovie), storedReviews));
 
         if (!ignore) {
           setSearchResults(adaptedResults);
@@ -101,7 +170,7 @@ export default function App() {
       ignore = true;
       window.clearTimeout(timeoutId);
     };
-  }, [searchQuery, movies, selectedMovie]);
+  }, [searchQuery, storedReviews]);
 
   useEffect(() => {
     if (!pendingSection || selectedMovie) return;
@@ -114,18 +183,29 @@ export default function App() {
     return () => window.clearTimeout(timeoutId);
   }, [pendingSection, selectedMovie]);
 
-  const mergeWithExistingReviews = (movie: Movie): Movie => {
-    const movieFromList = movies.find((currentMovie) => currentMovie.id === movie.id);
-    const matchingSource = movieFromList ?? (selectedMovie?.id === movie.id ? selectedMovie : null);
+  useEffect(() => {
+    if (selectedMovie) return;
 
-    if (!matchingSource) return movie;
+    const sections: SectionId[] = ['hero', 'recomendacoes', 'minha-lista', 'avaliacoes', 'catalogo', 'sobre'];
 
-    return {
-      ...movie,
-      userReviews: matchingSource.userReviews,
-      averageRating: matchingSource.userReviews.length > 0 ? matchingSource.averageRating : movie.averageRating,
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY + 160;
+      let currentSection: SectionId = 'hero';
+
+      for (const sectionId of sections) {
+        const element = document.getElementById(sectionId);
+        if (element && element.offsetTop <= scrollPosition) {
+          currentSection = sectionId;
+        }
+      }
+
+      setActiveSection(currentSection);
     };
-  };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [selectedMovie, watchlistIds.length, recentlyViewedIds.length]);
 
   const allGenres = useMemo(
     () => ['Todos', ...Array.from(new Set(movies.flatMap((movie) => movie.genre))).sort((a, b) => a.localeCompare(b))],
@@ -141,10 +221,17 @@ export default function App() {
 
   const filteredCatalogMovies =
     selectedGenre === 'Todos'
-      ? movies
+      ? [...movies]
       : movies.filter((movie) => movie.genre.some((genre) => genre.toLowerCase() === selectedGenre.toLowerCase()));
 
-  const activeCatalogMovies = searchQuery.trim().length >= 2 ? searchResults : filteredCatalogMovies;
+  const baseCatalogMovies = searchQuery.trim().length >= 2 ? [...searchResults] : filteredCatalogMovies;
+  const activeCatalogMovies = [...baseCatalogMovies].sort((movieA, movieB) => {
+    if (catalogSort === 'rating') return movieB.averageRating - movieA.averageRating;
+    if (catalogSort === 'year') return movieB.year - movieA.year || movieB.averageRating - movieA.averageRating;
+    if (catalogSort === 'title') return movieA.title.localeCompare(movieB.title);
+    return 0;
+  });
+
   const totalReviews = movies.reduce((acc, movie) => acc + movie.userReviews.length, 0);
   const averageCommunityRating =
     movies.length > 0 ? movies.reduce((acc, movie) => acc + movie.averageRating, 0) / movies.length : 0;
@@ -153,37 +240,38 @@ export default function App() {
     .sort((a, b) => b.userReviews.length - a.userReviews.length || b.averageRating - a.averageRating)
     .slice(0, 3);
 
-  const handleAddReview = (movieId: string, review: Review) => {
-    setMovies((prevMovies) =>
-      prevMovies.map((movie) =>
-        movie.id === movieId
-          ? {
-              ...movie,
-              userReviews: [...movie.userReviews, review],
-              averageRating:
-                (movie.averageRating * movie.userReviews.length + review.rating) /
-                (movie.userReviews.length + 1),
-            }
-          : movie
-      )
+  const movieLookup = useMemo(() => {
+    const map = new Map<string, Movie>();
+    [...movies, ...trendingMovies, ...searchResults, ...(selectedMovie ? [selectedMovie] : [])].forEach((movie) => {
+      map.set(movie.id, syncMovieWithReviews(movie, storedReviews));
+    });
+    return map;
+  }, [movies, trendingMovies, searchResults, selectedMovie, storedReviews]);
+
+  const watchlistMovies = watchlistIds
+    .map((movieId) => movieLookup.get(movieId))
+    .filter((movie): movie is Movie => Boolean(movie));
+
+  const recentlyViewedMovies = recentlyViewedIds
+    .map((movieId) => movieLookup.get(movieId))
+    .filter((movie): movie is Movie => Boolean(movie));
+
+  const handleToggleWatchlist = (movieId: string) => {
+    setWatchlistIds((prevIds) =>
+      prevIds.includes(movieId) ? prevIds.filter((id) => id !== movieId) : [movieId, ...prevIds]
     );
+  };
 
-    if (selectedMovie && selectedMovie.id === movieId) {
-      setSelectedMovie((prev) => {
-        if (!prev) return prev;
-
-        return {
-          ...prev,
-          userReviews: [...prev.userReviews, review],
-          averageRating:
-            (prev.averageRating * prev.userReviews.length + review.rating) /
-            (prev.userReviews.length + 1),
-        };
-      });
-    }
+  const handleAddReview = (movieId: string, review: Review) => {
+    setStoredReviews((prevReviews) => ({
+      ...prevReviews,
+      [movieId]: [...(prevReviews[movieId] ?? []), review],
+    }));
   };
 
   const handleSelectMovie = async (movie: Movie) => {
+    setRecentlyViewedIds((prevIds) => pushRecentMovie(prevIds, movie.id));
+
     try {
       const movieId = Number(movie.id);
       const [tmdbMovieDetails, providers] = await Promise.all([
@@ -192,8 +280,9 @@ export default function App() {
       ]);
 
       if (tmdbMovieDetails) {
-        const detailedMovie = mergeWithExistingReviews(
-          MovieAdapter.fromTMDBToMovie(tmdbMovieDetails, providers)
+        const detailedMovie = syncMovieWithReviews(
+          MovieAdapter.fromTMDBToMovie(tmdbMovieDetails, providers),
+          storedReviews
         );
         setSelectedMovie(detailedMovie);
         return;
@@ -202,10 +291,12 @@ export default function App() {
       console.error('Erro ao buscar detalhes do filme:', err);
     }
 
-    setSelectedMovie(movie);
+    setSelectedMovie(syncMovieWithReviews(movie, storedReviews));
   };
 
   const handleNavigate = (sectionId: SectionId) => {
+    setActiveSection(sectionId);
+
     if (selectedMovie) {
       setPendingSection(sectionId);
       setSelectedMovie(null);
@@ -233,16 +324,17 @@ export default function App() {
     setSearchQuery('');
     setSearchResults([]);
     setSelectedGenre('Todos');
+    setCatalogSort('relevance');
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-950 text-white flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950 text-white">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <Film className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-          <p className="text-slate-300 text-lg font-medium">Carregando filmes da API...</p>
-          <p className="text-slate-500 text-sm mt-2">Isso pode levar alguns segundos.</p>
+          <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+          <Film className="mx-auto mb-2 h-8 w-8 text-blue-500" />
+          <p className="text-lg font-medium text-slate-300">Carregando filmes da API...</p>
+          <p className="mt-2 text-sm text-slate-500">Isso pode levar alguns segundos.</p>
         </div>
       </div>
     );
@@ -250,14 +342,14 @@ export default function App() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-950 text-white flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <AlertCircle className="w-14 h-14 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-3">Erro ao conectar com a API</h2>
-          <p className="text-slate-300 mb-4">{error}</p>
-          <div className="bg-slate-800/50 rounded-lg p-4 mb-6 text-left">
-            <p className="text-slate-400 text-sm mb-2">Para corrigir:</p>
-            <ol className="text-slate-300 text-sm list-decimal list-inside space-y-1">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 to-slate-950 p-4 text-white">
+        <div className="max-w-md text-center">
+          <AlertCircle className="mx-auto mb-4 h-14 w-14 text-red-500" />
+          <h2 className="mb-3 text-2xl font-bold">Erro ao conectar com a API</h2>
+          <p className="mb-4 text-slate-300">{error}</p>
+          <div className="mb-6 rounded-lg bg-slate-800/50 p-4 text-left">
+            <p className="mb-2 text-sm text-slate-400">Para corrigir:</p>
+            <ol className="list-inside list-decimal space-y-1 text-sm text-slate-300">
               <li>Verifique se sua chave do TMDB está correta no arquivo `.env`.</li>
               <li>Certifique-se de que reiniciou o servidor após adicionar a chave.</li>
               <li>Verifique sua conexão com a internet.</li>
@@ -266,7 +358,7 @@ export default function App() {
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
+            className="rounded-lg bg-blue-600 px-6 py-3 font-medium text-white transition-colors hover:bg-blue-700"
           >
             Tentar novamente
           </button>
@@ -278,6 +370,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.15),_transparent_35%),linear-gradient(180deg,#020617_0%,#0f172a_55%,#111827_100%)] text-white">
       <Header
+        activeSection={activeSection}
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
         onNavigate={handleNavigate}
@@ -287,26 +380,32 @@ export default function App() {
 
       <main className="container mx-auto px-4 py-8">
         {selectedMovie ? (
-          <MovieDetails movie={selectedMovie} onBack={() => setSelectedMovie(null)} onAddReview={handleAddReview} />
+          <MovieDetails
+            movie={selectedMovie}
+            isInWatchlist={watchlistIds.includes(selectedMovie.id)}
+            onBack={() => setSelectedMovie(null)}
+            onAddReview={handleAddReview}
+            onToggleWatchlist={handleToggleWatchlist}
+          />
         ) : (
           <div className="space-y-12">
             {featuredMovie && (
               <section
                 id="hero"
-                className="relative scroll-mt-28 overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 md:p-10 backdrop-blur"
+                className="relative scroll-mt-28 overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 backdrop-blur md:p-10"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-sky-500/15 via-transparent to-amber-400/10" />
-                <div className="relative grid gap-8 lg:grid-cols-[1.3fr_0.9fr] items-center">
+                <div className="relative grid items-center gap-8 lg:grid-cols-[1.3fr_0.9fr]">
                   <div>
                     <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-1 text-sm text-sky-200">
                       <Sparkles className="h-4 w-4" />
                       Destaque da semana
                     </div>
-                    <h2 className="mt-5 max-w-2xl text-4xl md:text-5xl font-black tracking-tight">
+                    <h2 className="mt-5 max-w-2xl text-4xl font-black tracking-tight md:text-5xl">
                       Descubra o próximo filme que merece sua atenção.
                     </h2>
-                    <p className="mt-4 max-w-2xl text-slate-300 text-lg leading-8">
-                      Explore lançamentos, encontre onde assistir e registre suas próprias avaliações em um só lugar.
+                    <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-300">
+                      Explore lançamentos, encontre onde assistir, salve favoritos e registre suas próprias avaliações em um só lugar.
                     </p>
 
                     <div className="mt-8 flex flex-wrap gap-3">
@@ -326,10 +425,10 @@ export default function App() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setIsChatOpen(true)}
+                        onClick={() => handleNavigate('minha-lista')}
                         className="rounded-full border border-sky-400/30 bg-sky-400/10 px-6 py-3 font-semibold text-sky-100 transition hover:bg-sky-400/20"
                       >
-                        Pedir sugestões ao CineBot
+                        Abrir minha lista
                       </button>
                     </div>
                   </div>
@@ -361,11 +460,154 @@ export default function App() {
               </section>
             )}
 
+            <section id="recomendacoes" className="scroll-mt-28 space-y-8">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Recomendações</p>
+                  <h2 className="text-3xl font-black md:text-4xl">Coleções rápidas para navegar sem se perder</h2>
+                </div>
+                <p className="max-w-xl text-slate-400">
+                  Separei trilhas de descoberta para quem quer abrir o site e já encontrar algo promissor.
+                </p>
+              </div>
+
+              <MovieShelf
+                title="Para começar bem a noite"
+                description="Os títulos com melhor nota média entre os filmes já carregados."
+                movies={recommendedTonight}
+                watchlistIds={watchlistIds}
+                onSelectMovie={handleSelectMovie}
+                onToggleWatchlist={handleToggleWatchlist}
+              />
+
+              <MovieShelf
+                title="Em alta agora"
+                description="Uma faixa com os filmes que estão chamando atenção no momento."
+                movies={trendingShelf}
+                watchlistIds={watchlistIds}
+                onSelectMovie={handleSelectMovie}
+                onToggleWatchlist={handleToggleWatchlist}
+              />
+
+              <MovieShelf
+                title="Favoritos recentes"
+                description="Uma seleção puxando filmes mais novos com boa nota para descoberta rápida."
+                movies={recentFavorites}
+                watchlistIds={watchlistIds}
+                onSelectMovie={handleSelectMovie}
+                onToggleWatchlist={handleToggleWatchlist}
+              />
+            </section>
+
+            <section id="minha-lista" className="scroll-mt-28 space-y-8">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Minha Lista</p>
+                  <h2 className="text-3xl font-black md:text-4xl">Filmes salvos e histórico recente</h2>
+                </div>
+                <p className="max-w-xl text-slate-400">
+                  Uma área útil para retomar decisões, comparar opções e verificar se o usuário consegue recuperar o que viu antes.
+                </p>
+              </div>
+
+              {watchlistMovies.length > 0 ? (
+                <MovieShelf
+                  title="Salvos para depois"
+                  description="Os filmes que você marcou para revisitar durante a navegação."
+                  movies={watchlistMovies}
+                  watchlistIds={watchlistIds}
+                  onSelectMovie={handleSelectMovie}
+                  onToggleWatchlist={handleToggleWatchlist}
+                />
+              ) : (
+                <div className="rounded-[1.8rem] border border-dashed border-white/15 bg-slate-900/40 p-8 text-slate-300">
+                  <h3 className="text-xl font-bold text-white">Sua lista ainda está vazia</h3>
+                  <p className="mt-2 max-w-2xl text-slate-400">
+                    Use o botão “Salvar” nos cards ou nos detalhes do filme para montar uma lista pessoal de títulos interessantes.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">Vistos recentemente</h3>
+                      <p className="mt-1 text-slate-400">Continue exatamente de onde você parou.</p>
+                    </div>
+                    {recentlyViewedMovies.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setRecentlyViewedIds([])}
+                        className="text-sm text-slate-300 underline underline-offset-4 hover:text-white"
+                      >
+                        Limpar histórico
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-6 space-y-3">
+                    {recentlyViewedMovies.length > 0 ? (
+                      recentlyViewedMovies.map((movie, index) => (
+                        <button
+                          key={movie.id}
+                          type="button"
+                          onClick={() => handleSelectMovie(movie)}
+                          className="flex w-full items-center gap-4 rounded-3xl border border-white/10 bg-slate-950/50 p-4 text-left transition hover:border-sky-400/30 hover:bg-slate-900"
+                        >
+                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-sm font-black text-white">
+                            {index + 1}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-lg font-semibold text-white">{movie.title}</p>
+                            <p className="mt-1 text-sm text-slate-400">
+                              {movie.year} • {movie.duration} min • {movie.genre[0] ?? 'Filme'}
+                            </p>
+                          </div>
+                          <div className="rounded-full bg-amber-400/10 px-3 py-1.5 text-sm font-semibold text-amber-300">
+                            {movie.averageRating.toFixed(1)}
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="rounded-3xl border border-dashed border-white/15 bg-slate-950/40 p-6 text-slate-400">
+                        Ainda não há filmes no histórico. Abra alguns detalhes para preencher esta área.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-2xl bg-emerald-400/10 p-3 text-emerald-300">
+                      <Users className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">Fluxos úteis do produto</h3>
+                      <p className="text-slate-400">Interações que deixam o site mais rico para navegação real.</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 space-y-4 text-sm leading-7 text-slate-300">
+                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+                      Monte uma lista pessoal de filmes para comparar decisões sem depender só da memória.
+                    </div>
+                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+                      Retome os últimos títulos visitados para encurtar o caminho de volta aos detalhes.
+                    </div>
+                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+                      Publique reviews que ficam salvas neste navegador mesmo após recarregar a página.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <section id="avaliacoes" className="scroll-mt-28 space-y-8">
               <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Avaliações</p>
-                  <h2 className="text-3xl md:text-4xl font-black">Como o público está reagindo aos filmes</h2>
+                  <h2 className="text-3xl font-black md:text-4xl">Como o público está reagindo aos filmes</h2>
                 </div>
                 <p className="max-w-xl text-slate-400">
                   Esta área resume o catálogo e destaca os filmes que mais chamam atenção da comunidade.
@@ -381,12 +623,12 @@ export default function App() {
                 <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Média geral</p>
                   <p className="mt-4 text-4xl font-black">{averageCommunityRating.toFixed(1)}</p>
-                  <p className="mt-2 text-slate-400">A média das notas visíveis hoje na vitrine principal do site.</p>
+                  <p className="mt-2 text-slate-400">A média atual combina a nota base do TMDB com as reviews salvas localmente.</p>
                 </div>
                 <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Reviews da comunidade</p>
                   <p className="mt-4 text-4xl font-black">{totalReviews}</p>
-                  <p className="mt-2 text-slate-400">Esse número cresce a cada avaliação enviada pelos usuários.</p>
+                  <p className="mt-2 text-slate-400">Esse número cresce a cada avaliação publicada neste navegador.</p>
                 </div>
               </div>
 
@@ -397,7 +639,7 @@ export default function App() {
                       <BarChart3 className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-bold text-white">Destaques para avaliação</h3>
+                      <h3 className="text-2xl font-bold text-white">Destaques em review</h3>
                       <p className="text-slate-400">Filmes que estão se destacando em nota e engajamento.</p>
                     </div>
                   </div>
@@ -417,7 +659,7 @@ export default function App() {
                           <p className="truncate text-lg font-semibold text-white">{movie.title}</p>
                           <p className="mt-1 text-sm text-slate-400">
                             {movie.userReviews.length > 0
-                              ? `${movie.userReviews.length} review${movie.userReviews.length > 1 ? 's' : ''} enviadas`
+                              ? `${movie.userReviews.length} review${movie.userReviews.length > 1 ? 's' : ''} enviada${movie.userReviews.length > 1 ? 's' : ''}`
                               : 'Ainda sem reviews. Seja a primeira pessoa a avaliar.'}
                           </p>
                         </div>
@@ -455,47 +697,14 @@ export default function App() {
               </div>
             </section>
 
-            <section id="recomendacoes" className="scroll-mt-28 space-y-8">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Recomendações</p>
-                  <h2 className="text-3xl md:text-4xl font-black">Coleções rápidas para navegar sem se perder</h2>
-                </div>
-                <p className="max-w-xl text-slate-400">
-                  Separei trilhas de descoberta para quem quer abrir o site e já encontrar algo promissor.
-                </p>
-              </div>
-
-              <MovieShelf
-                title="Para começar bem a noite"
-                description="Os títulos com melhor nota média entre os filmes já carregados."
-                movies={recommendedTonight}
-                onSelectMovie={handleSelectMovie}
-              />
-
-              <MovieShelf
-                title="Em alta agora"
-                description="Uma faixa com os filmes que estão chamando atenção no momento."
-                movies={trendingShelf}
-                onSelectMovie={handleSelectMovie}
-              />
-
-              <MovieShelf
-                title="Favoritos recentes"
-                description="Uma seleção puxando filmes mais novos com boa nota para descoberta rápida."
-                movies={recentFavorites}
-                onSelectMovie={handleSelectMovie}
-              />
-            </section>
-
             <section id="catalogo" className="scroll-mt-28 space-y-8">
               <div className="rounded-[2rem] border border-white/10 bg-slate-900/60 p-6 md:p-8">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                   <div className="max-w-2xl">
                     <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Catálogo</p>
-                    <h2 className="mt-2 text-3xl md:text-4xl font-black">Busque por nome ou filtre por gênero</h2>
+                    <h2 className="mt-2 text-3xl font-black md:text-4xl">Busque por nome, filtre e ordene</h2>
                     <p className="mt-3 text-slate-400">
-                      A busca consulta o TMDB enquanto você digita, e os gêneros ajudam a navegar pelos títulos já carregados.
+                      A busca consulta o TMDB enquanto você digita, e os filtros ajudam a navegar pelos títulos já carregados com mais precisão.
                     </p>
                   </div>
 
@@ -504,13 +713,13 @@ export default function App() {
                       <span className="text-emerald-300">●</span>
                       {isSearching ? 'Buscando filmes...' : `${activeCatalogMovies.length} resultados visíveis`}
                     </div>
-                    {(searchQuery || selectedGenre !== 'Todos') && (
+                    {(searchQuery || selectedGenre !== 'Todos' || catalogSort !== 'relevance') && (
                       <button
                         type="button"
                         onClick={resetCatalogView}
                         className="text-sm text-slate-300 underline underline-offset-4 hover:text-white"
                       >
-                        Limpar busca e filtros
+                        Limpar busca, filtros e ordenação
                       </button>
                     )}
                   </div>
@@ -538,21 +747,37 @@ export default function App() {
                     )}
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {allGenres.map((genre) => (
-                      <button
-                        key={genre}
-                        type="button"
-                        onClick={() => setSelectedGenre(genre)}
-                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                          selectedGenre === genre
-                            ? 'bg-sky-400 text-slate-950'
-                            : 'border border-white/10 bg-slate-950/50 text-slate-300 hover:border-sky-400/30 hover:text-white'
-                        }`}
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex flex-wrap gap-2">
+                      {allGenres.map((genre) => (
+                        <button
+                          key={genre}
+                          type="button"
+                          onClick={() => setSelectedGenre(genre)}
+                          className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                            selectedGenre === genre
+                              ? 'bg-sky-400 text-slate-950'
+                              : 'border border-white/10 bg-slate-950/50 text-slate-300 hover:border-sky-400/30 hover:text-white'
+                          }`}
+                        >
+                          {genre}
+                        </button>
+                      ))}
+                    </div>
+
+                    <label className="flex items-center gap-3 text-sm text-slate-300">
+                      Ordenar por
+                      <select
+                        value={catalogSort}
+                        onChange={(event) => setCatalogSort(event.target.value as CatalogSort)}
+                        className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-2 text-white outline-none transition focus:border-sky-400/40"
                       >
-                        {genre}
-                      </button>
-                    ))}
+                        <option value="relevance">{searchQuery.trim().length >= 2 ? 'Relevância' : 'Ordem original'}</option>
+                        <option value="rating">Melhor nota</option>
+                        <option value="year">Mais recentes</option>
+                        <option value="title">Título (A-Z)</option>
+                      </select>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -567,19 +792,22 @@ export default function App() {
                       : `Filtrando o catálogo pelo gênero ${selectedGenre}.`
                 }
                 movies={activeCatalogMovies}
+                watchlistIds={watchlistIds}
                 emptyMessage={
                   searchQuery.trim().length >= 2
                     ? 'Nenhum filme encontrado para essa busca. Tente outro título.'
                     : 'Nenhum filme encontrado para esse gênero. Tente outro filtro.'
                 }
                 onSelectMovie={handleSelectMovie}
+                onToggleWatchlist={handleToggleWatchlist}
               />
             </section>
+
             <section id="sobre" className="scroll-mt-28 space-y-8">
               <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Sobre</p>
-                  <h2 className="text-3xl md:text-4xl font-black">O que é o CineReviews</h2>
+                  <h2 className="text-3xl font-black md:text-4xl">O que é o CineReviews</h2>
                 </div>
                 <p className="max-w-xl text-slate-400">
                   Uma aplicação focada em descoberta de filmes, análise de detalhes, recomendações e publicação de reviews.
@@ -603,7 +831,7 @@ export default function App() {
                   </div>
                   <h3 className="mt-5 text-xl font-bold text-white">Avaliação de filmes</h3>
                   <p className="mt-3 text-slate-400">
-                    Cada filme pode receber reviews e notas, criando uma base útil para observação em testes.
+                    Cada filme pode receber reviews e notas, com persistência local para continuar a experiência depois.
                   </p>
                 </div>
 
@@ -624,7 +852,7 @@ export default function App() {
 
       <button
         onClick={() => setIsChatOpen(!isChatOpen)}
-        className={`fixed bottom-6 right-6 z-50 flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-full shadow-2xl transition-all duration-300 hover:scale-110 ${
+        className={`fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full shadow-2xl transition-all duration-300 hover:scale-110 sm:h-14 sm:w-14 ${
           isChatOpen
             ? 'bg-red-600 hover:bg-red-700'
             : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'
@@ -633,21 +861,21 @@ export default function App() {
         style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)' }}
       >
         {isChatOpen ? (
-          <X className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          <X className="h-5 w-5 text-white sm:h-6 sm:w-6" />
         ) : (
-          <MessageCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          <MessageCircle className="h-5 w-5 text-white sm:h-6 sm:w-6" />
         )}
       </button>
 
       <ChatBot movies={movies} isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
 
-      <footer className="mt-16 py-8 border-t border-slate-800 bg-slate-900/50">
+      <footer className="mt-16 border-t border-slate-800 bg-slate-900/50 py-8">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
             <div className="text-center md:text-left">
               <p className="text-slate-400">CineReviews - Dados fornecidos por TMDB</p>
-              <p className="text-slate-500 text-sm mt-1">
-                Aplicação React/TypeScript com integração de API para descoberta, detalhes e reviews de filmes.
+              <p className="mt-1 text-sm text-slate-500">
+                Aplicação React/TypeScript com integração de API para descoberta, detalhes, listas pessoais e reviews de filmes.
               </p>
             </div>
             <div className="flex items-center gap-4">
@@ -656,7 +884,7 @@ export default function App() {
                 alt="TMDB Logo"
                 className="h-6 opacity-70"
               />
-              <span className="text-slate-500 text-sm">API v3</span>
+              <span className="text-sm text-slate-500">API v3</span>
             </div>
           </div>
         </div>

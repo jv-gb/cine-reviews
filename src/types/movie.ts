@@ -1,4 +1,3 @@
-// src/types/movie.ts
 export interface Review {
   id: string;
   userName: string;
@@ -16,6 +15,7 @@ export interface Movie {
   director: string;
   officialSummary: string;
   poster: string;
+  tmdbRating: number;
   averageRating: number;
   userReviews: Review[];
   streamingPlatforms: string[];

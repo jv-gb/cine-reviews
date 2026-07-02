@@ -94,9 +94,7 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
 
     if (foundGenre) {
       const genreMovies = movies
-        .filter((movie) =>
-          movie.genre.some((genre) => normalizeText(genre).includes(foundGenre))
-        )
+        .filter((movie) => movie.genre.some((genre) => normalizeText(genre).includes(foundGenre)))
         .slice(0, 3);
 
       if (genreMovies.length > 0) {
@@ -215,54 +213,53 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
   return (
     <div
       ref={chatContainerRef}
-      className="fixed inset-0 sm:inset-auto sm:bottom-6 sm:right-24 w-full sm:w-80 h-full sm:h-[540px] bg-slate-950 sm:rounded-3xl border border-white/10 shadow-2xl flex flex-col z-40"
-      style={{ maxWidth: '100vw', overflow: 'hidden' }}
+      className="fixed inset-0 z-40 flex h-full w-full max-w-full flex-col overflow-hidden border border-white/10 bg-slate-950 shadow-2xl sm:inset-auto sm:bottom-6 sm:right-24 sm:h-[540px] sm:w-80 sm:rounded-3xl"
     >
-      <div className="p-4 border-b border-white/10 bg-slate-950/95 flex-shrink-0">
+      <div className="flex-shrink-0 border-b border-white/10 bg-slate-950/95 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-400/10">
-              <Bot className="w-5 h-5 text-sky-300" />
+              <Bot className="h-5 w-5 text-sky-300" />
             </div>
             <div>
-              <h3 className="text-white font-bold text-base">CineBot</h3>
-              <p className="text-slate-400 text-sm">Assistente de descoberta</p>
+              <h3 className="text-base font-bold text-white">CineBot</h3>
+              <p className="text-sm text-slate-400">Assistente de descoberta</p>
             </div>
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleClearChat}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="rounded-lg p-2 transition-colors hover:bg-white/10"
               title="Limpar conversa"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="h-4 w-4" />
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="rounded-lg p-2 transition-colors hover:bg-white/10"
               title="Fechar chat"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3" style={{ overflowX: 'hidden' }}>
+      <div className="flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">
         {messages.map((message) => (
           <div
             key={message.id}
             className={`flex gap-2 ${message.sender === 'user' ? 'flex-row-reverse' : ''}`}
           >
             <div
-              className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${
+              className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full ${
                 message.sender === 'user' ? 'bg-blue-600' : 'bg-slate-800'
               }`}
             >
               {message.sender === 'user' ? (
-                <User className="w-3.5 h-3.5 text-white" />
+                <User className="h-3.5 w-3.5 text-white" />
               ) : (
-                <Bot className="w-3.5 h-3.5 text-sky-300" />
+                <Bot className="h-3.5 w-3.5 text-sky-300" />
               )}
             </div>
 
@@ -270,10 +267,10 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
               className={`max-w-[85%] rounded-2xl p-3 ${
                 message.sender === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-900 text-slate-200'
               }`}
-              style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
+              style={{ overflowWrap: 'break-word', wordBreak: 'break-word' }}
             >
-              <div className="text-sm whitespace-pre-line leading-relaxed">{message.text}</div>
-              <div className="text-xs opacity-60 mt-2">
+              <div className="whitespace-pre-line text-sm leading-relaxed">{message.text}</div>
+              <div className="mt-2 text-xs opacity-60">
                 {message.timestamp.toLocaleTimeString('pt-BR', {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -285,7 +282,7 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-3 border-t border-white/10 flex-shrink-0 bg-slate-950">
+      <div className="flex-shrink-0 border-t border-white/10 bg-slate-950 p-3">
         <div className="flex gap-2">
           <input
             type="text"
@@ -293,15 +290,15 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Digite sua pergunta..."
-            className="flex-1 px-4 py-3 bg-slate-900 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:ring-1 focus:ring-sky-400 focus:border-transparent"
+            className="flex-1 rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white focus:border-transparent focus:outline-none focus:ring-1 focus:ring-sky-400"
             disabled={isLoading}
           />
           <button
             onClick={handleSend}
             disabled={isLoading || !input.trim()}
-            className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+            className="flex items-center justify-center rounded-2xl bg-blue-600 px-4 py-3 text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 hover:bg-blue-700"
           >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </div>
       </div>

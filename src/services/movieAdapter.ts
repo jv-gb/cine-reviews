@@ -18,6 +18,8 @@ export class MovieAdapter {
         ? tmdbMovie.genres.map((genre) => genre.name)
         : ['Desconhecido'];
 
+    const tmdbRating = Number((tmdbMovie.vote_average / 2).toFixed(1));
+
     return {
       id: tmdbMovie.id.toString(),
       title: tmdbMovie.title,
@@ -29,7 +31,8 @@ export class MovieAdapter {
       poster: tmdbMovie.poster_path
         ? `https://image.tmdb.org/t/p/w500${tmdbMovie.poster_path}`
         : 'https://images.unsplash.com/photo-1535016120720-40c646be5580?w=400&h=600&fit=crop',
-      averageRating: tmdbMovie.vote_average / 2,
+      tmdbRating,
+      averageRating: tmdbRating,
       userReviews: [],
       streamingPlatforms:
         streamingPlatforms.length > 0 ? streamingPlatforms : ['Disponível para alugar/compra'],
