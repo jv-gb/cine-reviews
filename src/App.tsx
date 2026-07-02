@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Film, MessageCircle, Search, Sparkles, X } from 'lucide-react';
+import { AlertCircle, BarChart3, Film, MessageCircle, Search, Sparkles, Star, Users, X } from 'lucide-react';
 import { Header } from './components/Header';
 import { MovieGrid } from './components/MovieGrid';
 import { MovieDetails } from './components/MovieDetails';
@@ -148,6 +148,10 @@ export default function App() {
   const totalReviews = movies.reduce((acc, movie) => acc + movie.userReviews.length, 0);
   const averageCommunityRating =
     movies.length > 0 ? movies.reduce((acc, movie) => acc + movie.averageRating, 0) / movies.length : 0;
+  const highlightedReviews = [...movies]
+    .filter((movie) => movie.userReviews.length > 0)
+    .sort((a, b) => b.userReviews.length - a.userReviews.length || b.averageRating - a.averageRating)
+    .slice(0, 3);
 
   const handleAddReview = (movieId: string, review: Review) => {
     setMovies((prevMovies) =>
@@ -289,7 +293,7 @@ export default function App() {
             {featuredMovie && (
               <section
                 id="hero"
-                className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 md:p-10 backdrop-blur"
+                className="relative scroll-mt-28 overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 md:p-10 backdrop-blur"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-sky-500/15 via-transparent to-amber-400/10" />
                 <div className="relative grid gap-8 lg:grid-cols-[1.3fr_0.9fr] items-center">
@@ -357,25 +361,101 @@ export default function App() {
               </section>
             )}
 
-            <section id="avaliacoes" className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
-                <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Filmes no catálogo</p>
-                <p className="mt-4 text-4xl font-black">{movies.length}</p>
-                <p className="mt-2 text-slate-400">Um ponto de partida sólido para explorar títulos populares.</p>
+            <section id="avaliacoes" className="scroll-mt-28 space-y-8">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Avaliações</p>
+                  <h2 className="text-3xl md:text-4xl font-black">Como o público está reagindo aos filmes</h2>
+                </div>
+                <p className="max-w-xl text-slate-400">
+                  Esta área resume o catálogo e destaca os filmes que mais chamam atenção da comunidade.
+                </p>
               </div>
-              <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
-                <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Média geral</p>
-                <p className="mt-4 text-4xl font-black">{averageCommunityRating.toFixed(1)}</p>
-                <p className="mt-2 text-slate-400">A média das notas visíveis hoje na vitrine principal do site.</p>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
+                  <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Filmes no catálogo</p>
+                  <p className="mt-4 text-4xl font-black">{movies.length}</p>
+                  <p className="mt-2 text-slate-400">Um ponto de partida sólido para explorar títulos populares.</p>
+                </div>
+                <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
+                  <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Média geral</p>
+                  <p className="mt-4 text-4xl font-black">{averageCommunityRating.toFixed(1)}</p>
+                  <p className="mt-2 text-slate-400">A média das notas visíveis hoje na vitrine principal do site.</p>
+                </div>
+                <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
+                  <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Reviews da comunidade</p>
+                  <p className="mt-4 text-4xl font-black">{totalReviews}</p>
+                  <p className="mt-2 text-slate-400">Esse número cresce a cada avaliação enviada pelos usuários.</p>
+                </div>
               </div>
-              <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
-                <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Reviews da comunidade</p>
-                <p className="mt-4 text-4xl font-black">{totalReviews}</p>
-                <p className="mt-2 text-slate-400">Esse número cresce a cada avaliação enviada pelos usuários.</p>
+
+              <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-2xl bg-sky-400/10 p-3 text-sky-300">
+                      <BarChart3 className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">Destaques para avaliação</h3>
+                      <p className="text-slate-400">Filmes que estão se destacando em nota e engajamento.</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 space-y-4">
+                    {(highlightedReviews.length > 0 ? highlightedReviews : movies.slice(0, 3)).map((movie, index) => (
+                      <button
+                        key={movie.id}
+                        type="button"
+                        onClick={() => handleSelectMovie(movie)}
+                        className="flex w-full items-center gap-4 rounded-3xl border border-white/10 bg-slate-950/50 p-4 text-left transition hover:border-sky-400/30 hover:bg-slate-900"
+                      >
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/5 text-lg font-black text-white">
+                          {index + 1}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-lg font-semibold text-white">{movie.title}</p>
+                          <p className="mt-1 text-sm text-slate-400">
+                            {movie.userReviews.length > 0
+                              ? `${movie.userReviews.length} review${movie.userReviews.length > 1 ? 's' : ''} enviadas`
+                              : 'Ainda sem reviews. Seja a primeira pessoa a avaliar.'}
+                          </p>
+                        </div>
+                        <div className="rounded-full bg-amber-400/10 px-3 py-1.5 text-sm font-semibold text-amber-300">
+                          {movie.averageRating.toFixed(1)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-2xl bg-emerald-400/10 p-3 text-emerald-300">
+                      <Users className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-white">Por que usar o CineReviews</h3>
+                      <p className="text-slate-400">Uma navegação pensada para descoberta, comparação e opinião.</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6 space-y-4 text-sm leading-7 text-slate-300">
+                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+                      Explore filmes por busca, gênero e recomendações sem perder o contexto da navegação.
+                    </div>
+                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+                      Compare títulos rapidamente antes de abrir os detalhes completos de cada filme.
+                    </div>
+                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+                      Descubra onde assistir, leia a sinopse e compartilhe sua própria avaliação.
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
 
-            <section id="recomendacoes" className="space-y-8">
+            <section id="recomendacoes" className="scroll-mt-28 space-y-8">
               <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
                   <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Recomendações</p>
@@ -408,7 +488,7 @@ export default function App() {
               />
             </section>
 
-            <section id="catalogo" className="space-y-8">
+            <section id="catalogo" className="scroll-mt-28 space-y-8">
               <div className="rounded-[2rem] border border-white/10 bg-slate-900/60 p-6 md:p-8">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                   <div className="max-w-2xl">
@@ -495,6 +575,49 @@ export default function App() {
                 onSelectMovie={handleSelectMovie}
               />
             </section>
+            <section id="sobre" className="scroll-mt-28 space-y-8">
+              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Sobre</p>
+                  <h2 className="text-3xl md:text-4xl font-black">O que é o CineReviews</h2>
+                </div>
+                <p className="max-w-xl text-slate-400">
+                  Uma aplicação focada em descoberta de filmes, análise de detalhes, recomendações e publicação de reviews.
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/10 text-sky-300">
+                    <Search className="h-6 w-6" />
+                  </div>
+                  <h3 className="mt-5 text-xl font-bold text-white">Busca e descoberta</h3>
+                  <p className="mt-3 text-slate-400">
+                    O usuário encontra filmes pelo nome, filtra por gênero e navega por coleções curadas.
+                  </p>
+                </div>
+
+                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-300">
+                    <Star className="h-6 w-6" />
+                  </div>
+                  <h3 className="mt-5 text-xl font-bold text-white">Avaliação de filmes</h3>
+                  <p className="mt-3 text-slate-400">
+                    Cada filme pode receber reviews e notas, criando uma base útil para observação em testes.
+                  </p>
+                </div>
+
+                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
+                    <MessageCircle className="h-6 w-6" />
+                  </div>
+                  <h3 className="mt-5 text-xl font-bold text-white">Assistente CineBot</h3>
+                  <p className="mt-3 text-slate-400">
+                    Um apoio conversacional para recomendações, consulta de nota e orientação de descoberta.
+                  </p>
+                </div>
+              </div>
+            </section>
           </div>
         )}
       </main>
@@ -518,7 +641,7 @@ export default function App() {
 
       <ChatBot movies={movies} isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
 
-      <footer className="mt-16 py-8 border-t border-slate-800 bg-slate-900/50" id="sobre">
+      <footer className="mt-16 py-8 border-t border-slate-800 bg-slate-900/50">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-center md:text-left">
