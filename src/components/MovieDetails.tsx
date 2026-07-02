@@ -104,7 +104,7 @@ export function MovieDetails({
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-300">
-                Base TMDB: <span className="font-semibold text-white">{movie.tmdbRating.toFixed(1)}</span>
+                Nota de referência: <span className="font-semibold text-white">{movie.tmdbRating.toFixed(1)}</span>
               </div>
             </div>
           </div>
@@ -124,7 +124,7 @@ export function MovieDetails({
             <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
               <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Reviews</p>
               <p className="mt-3 text-3xl font-black text-white">{movie.userReviews.length}</p>
-              <p className="mt-2 text-slate-400">Número de avaliações comunitárias registradas para este filme.</p>
+              <p className="mt-2 text-slate-400">Veja quantas pessoas já deixaram sua opinião sobre este filme.</p>
             </div>
             <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
               <div className="mb-3 flex items-center gap-3">
@@ -179,7 +179,7 @@ export function MovieDetails({
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <h3 className="text-2xl font-bold text-white">Reviews da comunidade</h3>
-                      <p className="mt-1 text-sm text-slate-400">As reviews ficam salvas localmente neste navegador.</p>
+                      <p className="mt-1 text-sm text-slate-400">Suas opiniões ficam guardadas para você continuar depois neste aparelho.</p>
                     </div>
                     <button
                       onClick={() => setShowReviewForm(!showReviewForm)}

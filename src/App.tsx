@@ -62,7 +62,6 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pendingSection, setPendingSection] = useState<SectionId | null>(null);
   const [activeSection, setActiveSection] = useState<SectionId>('hero');
   const [storedReviews, setStoredReviews] = useState<Record<string, Review[]>>(() =>
     readStorage<Record<string, Review[]>>(REVIEWS_STORAGE_KEY, {})
@@ -172,41 +171,6 @@ export default function App() {
     };
   }, [searchQuery, storedReviews]);
 
-  useEffect(() => {
-    if (!pendingSection || selectedMovie) return;
-
-    const timeoutId = window.setTimeout(() => {
-      document.getElementById(pendingSection)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setPendingSection(null);
-    }, 50);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [pendingSection, selectedMovie]);
-
-  useEffect(() => {
-    if (selectedMovie) return;
-
-    const sections: SectionId[] = ['hero', 'recomendacoes', 'minha-lista', 'avaliacoes', 'catalogo', 'sobre'];
-
-    const handleScroll = () => {
-      const scrollPosition = window.scrollY + 160;
-      let currentSection: SectionId = 'hero';
-
-      for (const sectionId of sections) {
-        const element = document.getElementById(sectionId);
-        if (element && element.offsetTop <= scrollPosition) {
-          currentSection = sectionId;
-        }
-      }
-
-      setActiveSection(currentSection);
-    };
-
-    handleScroll();
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [selectedMovie, watchlistIds.length, recentlyViewedIds.length]);
-
   const allGenres = useMemo(
     () => ['Todos', ...Array.from(new Set(movies.flatMap((movie) => movie.genre))).sort((a, b) => a.localeCompare(b))],
     [movies]
@@ -298,12 +262,8 @@ export default function App() {
     setActiveSection(sectionId);
 
     if (selectedMovie) {
-      setPendingSection(sectionId);
       setSelectedMovie(null);
-      return;
     }
-
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleSearchChange = (value: string) => {
@@ -311,13 +271,11 @@ export default function App() {
 
     if (!value.trim()) return;
 
-    if (selectedMovie) {
-      setPendingSection('catalogo');
-      setSelectedMovie(null);
-      return;
-    }
+    setActiveSection('catalogo');
 
-    document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (selectedMovie) {
+      setSelectedMovie(null);
+    }
   };
 
   const resetCatalogView = () => {
@@ -325,6 +283,535 @@ export default function App() {
     setSearchResults([]);
     setSelectedGenre('Todos');
     setCatalogSort('relevance');
+  };
+
+  const renderHeroView = () => (
+    <div className="space-y-12">
+      {featuredMovie && (
+        <section
+          id="hero"
+          className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 backdrop-blur md:p-10"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-sky-500/15 via-transparent to-amber-400/10" />
+          <div className="relative grid items-center gap-8 lg:grid-cols-[1.3fr_0.9fr]">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-1 text-sm text-sky-200">
+                <Sparkles className="h-4 w-4" />
+                Destaque da semana
+              </div>
+              <h2 className="mt-5 max-w-2xl text-4xl font-black tracking-tight md:text-5xl">
+                Descubra o próximo filme que merece sua atenção.
+              </h2>
+              <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-300">
+                Descubra o que assistir hoje, salve seus favoritos e compartilhe sua opinião sem complicação.
+              </p>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleSelectMovie(featuredMovie)}
+                  className="rounded-full bg-white px-6 py-3 font-semibold text-slate-950 transition hover:bg-slate-200"
+                >
+                  Ver destaque: {featuredMovie.title}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('recomendacoes')}
+                  className="rounded-full border border-white/20 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
+                >
+                  Ver recomendações
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('minha-lista')}
+                  className="rounded-full border border-sky-400/30 bg-sky-400/10 px-6 py-3 font-semibold text-sky-100 transition hover:bg-sky-400/20"
+                >
+                  Abrir minha lista
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleSelectMovie(featuredMovie)}
+              className="group rounded-[1.5rem] border border-white/10 bg-slate-950/60 p-4 text-left shadow-2xl shadow-sky-950/30 transition hover:-translate-y-1 hover:border-sky-400/30"
+            >
+              <div className="overflow-hidden rounded-[1.2rem]">
+                <img
+                  src={featuredMovie.poster}
+                  alt={featuredMovie.title}
+                  className="h-[420px] w-full object-cover transition duration-500 group-hover:scale-105"
+                />
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-sky-200/70">Escolha em destaque</p>
+                  <h3 className="mt-2 text-2xl font-bold">{featuredMovie.title}</h3>
+                </div>
+                <div className="rounded-2xl bg-amber-400/10 px-4 py-2 text-right">
+                  <p className="text-xs uppercase tracking-wide text-amber-200/80">Nota</p>
+                  <p className="text-2xl font-black text-amber-300">{featuredMovie.averageRating.toFixed(1)}</p>
+                </div>
+              </div>
+            </button>
+          </div>
+        </section>
+      )}
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <button
+          type="button"
+          onClick={() => setActiveSection('catalogo')}
+          className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 text-left transition hover:border-sky-400/30 hover:bg-slate-900/80"
+        >
+          <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Catálogo</p>
+          <p className="mt-4 text-4xl font-black">{movies.length}</p>
+          <p className="mt-2 text-slate-400">Encontre algo do seu jeito, com busca, filtros e sugestões.</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection('avaliacoes')}
+          className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 text-left transition hover:border-sky-400/30 hover:bg-slate-900/80"
+        >
+          <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Média geral</p>
+          <p className="mt-4 text-4xl font-black">{averageCommunityRating.toFixed(1)}</p>
+          <p className="mt-2 text-slate-400">Veja quais filmes estão agradando mais por aqui.</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveSection('minha-lista')}
+          className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 text-left transition hover:border-sky-400/30 hover:bg-slate-900/80"
+        >
+          <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Minha lista</p>
+          <p className="mt-4 text-4xl font-black">{watchlistIds.length}</p>
+          <p className="mt-2 text-slate-400">Guarde filmes interessantes para voltar depois com facilidade.</p>
+        </button>
+      </section>
+
+      <MovieShelf
+        title="Comece por aqui"
+        description="Uma seleção rápida para entrar no clima e encontrar um bom filme logo de cara."
+        movies={recommendedTonight}
+        watchlistIds={watchlistIds}
+        onSelectMovie={handleSelectMovie}
+        onToggleWatchlist={handleToggleWatchlist}
+      />
+    </div>
+  );
+
+  const renderRecommendationsView = () => (
+    <section id="recomendacoes" className="space-y-8">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Recomendações</p>
+          <h2 className="text-3xl font-black md:text-4xl">Coleções rápidas para navegar sem se perder</h2>
+        </div>
+        <p className="max-w-xl text-slate-400">
+          Seleções pensadas para quem quer entrar e já sair com uma boa opção para assistir.
+        </p>
+      </div>
+
+      <MovieShelf
+        title="Para começar bem a noite"
+        description="Os títulos com melhor nota média entre os filmes já carregados."
+        movies={recommendedTonight}
+        watchlistIds={watchlistIds}
+        onSelectMovie={handleSelectMovie}
+        onToggleWatchlist={handleToggleWatchlist}
+      />
+
+      <MovieShelf
+        title="Em alta agora"
+        description="Uma faixa com os filmes que estão chamando atenção no momento."
+        movies={trendingShelf}
+        watchlistIds={watchlistIds}
+        onSelectMovie={handleSelectMovie}
+        onToggleWatchlist={handleToggleWatchlist}
+      />
+
+      <MovieShelf
+        title="Favoritos recentes"
+        description="Uma seleção puxando filmes mais novos com boa nota para descoberta rápida."
+        movies={recentFavorites}
+        watchlistIds={watchlistIds}
+        onSelectMovie={handleSelectMovie}
+        onToggleWatchlist={handleToggleWatchlist}
+      />
+    </section>
+  );
+
+  const renderWatchlistView = () => (
+    <section id="minha-lista" className="space-y-8">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Minha Lista</p>
+          <h2 className="text-3xl font-black md:text-4xl">Filmes salvos e histórico recente</h2>
+        </div>
+        <p className="max-w-xl text-slate-400">
+          Um espaço para guardar o que chamou sua atenção e retomar filmes vistos recentemente.
+        </p>
+      </div>
+
+      {watchlistMovies.length > 0 ? (
+        <MovieShelf
+          title="Salvos para depois"
+          description="Os filmes que você marcou para revisitar durante a navegação."
+          movies={watchlistMovies}
+          watchlistIds={watchlistIds}
+          onSelectMovie={handleSelectMovie}
+          onToggleWatchlist={handleToggleWatchlist}
+        />
+      ) : (
+        <div className="rounded-[1.8rem] border border-dashed border-white/15 bg-slate-900/40 p-8 text-slate-300">
+          <h3 className="text-xl font-bold text-white">Sua lista ainda está vazia</h3>
+          <p className="mt-2 max-w-2xl text-slate-400">
+            Use o botão “Salvar” nos cards ou nos detalhes do filme para montar uma lista pessoal de títulos interessantes.
+          </p>
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="text-2xl font-bold text-white">Vistos recentemente</h3>
+              <p className="mt-1 text-slate-400">Retome os últimos filmes que você abriu.</p>
+            </div>
+            {recentlyViewedMovies.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setRecentlyViewedIds([])}
+                className="text-sm text-slate-300 underline underline-offset-4 hover:text-white"
+              >
+                Limpar histórico
+              </button>
+            )}
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {recentlyViewedMovies.length > 0 ? (
+              recentlyViewedMovies.map((movie, index) => (
+                <button
+                  key={movie.id}
+                  type="button"
+                  onClick={() => handleSelectMovie(movie)}
+                  className="flex w-full items-center gap-4 rounded-3xl border border-white/10 bg-slate-950/50 p-4 text-left transition hover:border-sky-400/30 hover:bg-slate-900"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-sm font-black text-white">
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-lg font-semibold text-white">{movie.title}</p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      {movie.year} • {movie.duration} min • {movie.genre[0] ?? 'Filme'}
+                    </p>
+                  </div>
+                  <div className="rounded-full bg-amber-400/10 px-3 py-1.5 text-sm font-semibold text-amber-300">
+                    {movie.averageRating.toFixed(1)}
+                  </div>
+                </button>
+              ))
+            ) : (
+              <div className="rounded-3xl border border-dashed border-white/15 bg-slate-950/40 p-6 text-slate-400">
+                Ainda não há filmes no histórico. Abra alguns detalhes para preencher esta área.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-emerald-400/10 p-3 text-emerald-300">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">Tudo em um só lugar</h3>
+              <p className="text-slate-400">Tudo o que ajuda você a escolher melhor o próximo filme.</p>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-4 text-sm leading-7 text-slate-300">
+            <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+              Salve filmes interessantes para comparar com calma antes de decidir.
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+              Volte aos últimos títulos vistos sem precisar buscar tudo de novo.
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+              Deixe sua opinião e continue de onde parou na próxima visita.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderRatingsView = () => (
+    <section id="avaliacoes" className="space-y-8">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Avaliações</p>
+          <h2 className="text-3xl font-black md:text-4xl">Como o público está reagindo aos filmes</h2>
+        </div>
+        <p className="max-w-xl text-slate-400">
+          Veja rapidamente quais títulos estão recebendo mais atenção e melhores notas.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
+          <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Filmes no catálogo</p>
+          <p className="mt-4 text-4xl font-black">{movies.length}</p>
+          <p className="mt-2 text-slate-400">Uma seleção ampla para começar a explorar sem dificuldade.</p>
+        </div>
+        <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
+          <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Média geral</p>
+          <p className="mt-4 text-4xl font-black">{averageCommunityRating.toFixed(1)}</p>
+          <p className="mt-2 text-slate-400">Uma visão rápida do que está agradando mais entre os filmes mostrados.</p>
+        </div>
+        <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
+          <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Reviews da comunidade</p>
+          <p className="mt-4 text-4xl font-black">{totalReviews}</p>
+          <p className="mt-2 text-slate-400">Cada review ajuda outras pessoas a decidir melhor o que assistir.</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-sky-400/10 p-3 text-sky-300">
+              <BarChart3 className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">Destaques em review</h3>
+              <p className="text-slate-400">Filmes que estão chamando mais atenção por aqui.</p>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            {(highlightedReviews.length > 0 ? highlightedReviews : movies.slice(0, 3)).map((movie, index) => (
+              <button
+                key={movie.id}
+                type="button"
+                onClick={() => handleSelectMovie(movie)}
+                className="flex w-full items-center gap-4 rounded-3xl border border-white/10 bg-slate-950/50 p-4 text-left transition hover:border-sky-400/30 hover:bg-slate-900"
+              >
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/5 text-lg font-black text-white">
+                  {index + 1}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-lg font-semibold text-white">{movie.title}</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    {movie.userReviews.length > 0
+                      ? `${movie.userReviews.length} review${movie.userReviews.length > 1 ? 's' : ''} enviada${movie.userReviews.length > 1 ? 's' : ''}`
+                      : 'Ainda sem reviews. Seja a primeira pessoa a avaliar.'}
+                  </p>
+                </div>
+                <div className="rounded-full bg-amber-400/10 px-3 py-1.5 text-sm font-semibold text-amber-300">
+                  {movie.averageRating.toFixed(1)}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl bg-emerald-400/10 p-3 text-emerald-300">
+              <Users className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold text-white">Por que usar o CineReviews</h3>
+              <p className="text-slate-400">Um jeito simples de descobrir, comparar e escolher melhor.</p>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-4 text-sm leading-7 text-slate-300">
+            <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+              Encontre filmes por nome, por gênero ou pelas sugestões que fazem mais sentido para o momento.
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+              Compare opções com rapidez antes de abrir os detalhes completos de cada título.
+            </div>
+            <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
+              Veja onde assistir, leia a sinopse e conte o que achou de cada filme.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderCatalogView = () => (
+    <section id="catalogo" className="space-y-8">
+      <div className="rounded-[2rem] border border-white/10 bg-slate-900/60 p-6 md:p-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Catálogo</p>
+            <h2 className="mt-2 text-3xl font-black md:text-4xl">Busque por nome, filtre e ordene</h2>
+          <p className="mt-3 text-slate-400">
+            Use a busca, ajuste os filtros e encontre mais rápido algo que combine com seu momento.
+          </p>
+          </div>
+
+          <div className="flex flex-col gap-3 lg:items-end">
+            <div className="flex items-center gap-2 rounded-full bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200">
+              <span className="text-emerald-300">●</span>
+                      {isSearching ? 'Buscando filmes...' : `${activeCatalogMovies.length} resultados encontrados`}
+            </div>
+            {(searchQuery || selectedGenre !== 'Todos' || catalogSort !== 'relevance') && (
+              <button
+                type="button"
+                onClick={resetCatalogView}
+                className="text-sm text-slate-300 underline underline-offset-4 hover:text-white"
+              >
+                Limpar busca, filtros e ordenação
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col gap-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              placeholder="Busque por um filme, por exemplo: Interestelar, Barbie, Parasita..."
+              className="w-full rounded-2xl border border-white/10 bg-slate-950/60 py-4 pl-12 pr-12 text-white placeholder:text-slate-500 outline-none transition focus:border-sky-400/40 focus:bg-slate-950"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-white/10 hover:text-white"
+                aria-label="Limpar busca"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {allGenres.map((genre) => (
+                <button
+                  key={genre}
+                  type="button"
+                  onClick={() => setSelectedGenre(genre)}
+                  className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    selectedGenre === genre
+                      ? 'bg-sky-400 text-slate-950'
+                      : 'border border-white/10 bg-slate-950/50 text-slate-300 hover:border-sky-400/30 hover:text-white'
+                  }`}
+                >
+                  {genre}
+                </button>
+              ))}
+            </div>
+
+            <label className="flex items-center gap-3 text-sm text-slate-300">
+              Ordenar por
+              <select
+                value={catalogSort}
+                onChange={(event) => setCatalogSort(event.target.value as CatalogSort)}
+                className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-2 text-white outline-none transition focus:border-sky-400/40"
+              >
+                <option value="relevance">{searchQuery.trim().length >= 2 ? 'Relevância' : 'Ordem original'}</option>
+                <option value="rating">Melhor nota</option>
+                <option value="year">Mais recentes</option>
+                <option value="title">Título (A-Z)</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <MovieGrid
+        title={searchQuery.trim().length >= 2 ? 'Resultados da busca' : 'Catálogo popular'}
+        description={
+          searchQuery.trim().length >= 2
+            ? 'Filmes encontrados a partir da sua busca atual.'
+            : selectedGenre === 'Todos'
+              ? 'Os filmes populares carregados para exploração livre.'
+              : `Filtrando o catálogo pelo gênero ${selectedGenre}.`
+        }
+        movies={activeCatalogMovies}
+        watchlistIds={watchlistIds}
+        emptyMessage={
+          searchQuery.trim().length >= 2
+            ? 'Nenhum filme encontrado para essa busca. Tente outro título.'
+            : 'Nenhum filme encontrado para esse gênero. Tente outro filtro.'
+        }
+        onSelectMovie={handleSelectMovie}
+        onToggleWatchlist={handleToggleWatchlist}
+      />
+    </section>
+  );
+
+  const renderAboutView = () => (
+    <section id="sobre" className="space-y-8">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Sobre</p>
+          <h2 className="text-3xl font-black md:text-4xl">O que é o CineReviews</h2>
+        </div>
+        <p className="max-w-xl text-slate-400">
+          Um lugar para descobrir filmes, salvar favoritos e compartilhar suas impressões.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/10 text-sky-300">
+            <Search className="h-6 w-6" />
+          </div>
+          <h3 className="mt-5 text-xl font-bold text-white">Busca e descoberta</h3>
+          <p className="mt-3 text-slate-400">
+            O usuário encontra filmes pelo nome, filtra por gênero e navega por coleções curadas.
+          </p>
+        </div>
+
+        <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-300">
+            <Star className="h-6 w-6" />
+          </div>
+          <h3 className="mt-5 text-xl font-bold text-white">Avaliação de filmes</h3>
+          <p className="mt-3 text-slate-400">
+            Cada filme pode receber sua nota e sua opinião para tornar a escolha mais pessoal.
+          </p>
+        </div>
+
+        <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
+            <MessageCircle className="h-6 w-6" />
+          </div>
+          <h3 className="mt-5 text-xl font-bold text-white">Assistente CineBot</h3>
+          <p className="mt-3 text-slate-400">
+            Um apoio conversacional para recomendações, consulta de nota e orientação de descoberta.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderCurrentView = () => {
+    switch (activeSection) {
+      case 'recomendacoes':
+        return renderRecommendationsView();
+      case 'minha-lista':
+        return renderWatchlistView();
+      case 'avaliacoes':
+        return renderRatingsView();
+      case 'catalogo':
+        return renderCatalogView();
+      case 'sobre':
+        return renderAboutView();
+      case 'hero':
+      default:
+        return renderHeroView();
+    }
   };
 
   if (loading) {
@@ -388,465 +875,7 @@ export default function App() {
             onToggleWatchlist={handleToggleWatchlist}
           />
         ) : (
-          <div className="space-y-12">
-            {featuredMovie && (
-              <section
-                id="hero"
-                className="relative scroll-mt-28 overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-8 backdrop-blur md:p-10"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-sky-500/15 via-transparent to-amber-400/10" />
-                <div className="relative grid items-center gap-8 lg:grid-cols-[1.3fr_0.9fr]">
-                  <div>
-                    <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-1 text-sm text-sky-200">
-                      <Sparkles className="h-4 w-4" />
-                      Destaque da semana
-                    </div>
-                    <h2 className="mt-5 max-w-2xl text-4xl font-black tracking-tight md:text-5xl">
-                      Descubra o próximo filme que merece sua atenção.
-                    </h2>
-                    <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-300">
-                      Explore lançamentos, encontre onde assistir, salve favoritos e registre suas próprias avaliações em um só lugar.
-                    </p>
-
-                    <div className="mt-8 flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSelectMovie(featuredMovie)}
-                        className="rounded-full bg-white px-6 py-3 font-semibold text-slate-950 transition hover:bg-slate-200"
-                      >
-                        Ver destaque: {featuredMovie.title}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleNavigate('recomendacoes')}
-                        className="rounded-full border border-white/20 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
-                      >
-                        Ver recomendações
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleNavigate('minha-lista')}
-                        className="rounded-full border border-sky-400/30 bg-sky-400/10 px-6 py-3 font-semibold text-sky-100 transition hover:bg-sky-400/20"
-                      >
-                        Abrir minha lista
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSelectMovie(featuredMovie)}
-                    className="group rounded-[1.5rem] border border-white/10 bg-slate-950/60 p-4 text-left shadow-2xl shadow-sky-950/30 transition hover:-translate-y-1 hover:border-sky-400/30"
-                  >
-                    <div className="overflow-hidden rounded-[1.2rem]">
-                      <img
-                        src={featuredMovie.poster}
-                        alt={featuredMovie.title}
-                        className="h-[420px] w-full object-cover transition duration-500 group-hover:scale-105"
-                      />
-                    </div>
-                    <div className="mt-4 flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-sky-200/70">Escolha em destaque</p>
-                        <h3 className="mt-2 text-2xl font-bold">{featuredMovie.title}</h3>
-                      </div>
-                      <div className="rounded-2xl bg-amber-400/10 px-4 py-2 text-right">
-                        <p className="text-xs uppercase tracking-wide text-amber-200/80">Nota</p>
-                        <p className="text-2xl font-black text-amber-300">{featuredMovie.averageRating.toFixed(1)}</p>
-                      </div>
-                    </div>
-                  </button>
-                </div>
-              </section>
-            )}
-
-            <section id="recomendacoes" className="scroll-mt-28 space-y-8">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Recomendações</p>
-                  <h2 className="text-3xl font-black md:text-4xl">Coleções rápidas para navegar sem se perder</h2>
-                </div>
-                <p className="max-w-xl text-slate-400">
-                  Separei trilhas de descoberta para quem quer abrir o site e já encontrar algo promissor.
-                </p>
-              </div>
-
-              <MovieShelf
-                title="Para começar bem a noite"
-                description="Os títulos com melhor nota média entre os filmes já carregados."
-                movies={recommendedTonight}
-                watchlistIds={watchlistIds}
-                onSelectMovie={handleSelectMovie}
-                onToggleWatchlist={handleToggleWatchlist}
-              />
-
-              <MovieShelf
-                title="Em alta agora"
-                description="Uma faixa com os filmes que estão chamando atenção no momento."
-                movies={trendingShelf}
-                watchlistIds={watchlistIds}
-                onSelectMovie={handleSelectMovie}
-                onToggleWatchlist={handleToggleWatchlist}
-              />
-
-              <MovieShelf
-                title="Favoritos recentes"
-                description="Uma seleção puxando filmes mais novos com boa nota para descoberta rápida."
-                movies={recentFavorites}
-                watchlistIds={watchlistIds}
-                onSelectMovie={handleSelectMovie}
-                onToggleWatchlist={handleToggleWatchlist}
-              />
-            </section>
-
-            <section id="minha-lista" className="scroll-mt-28 space-y-8">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Minha Lista</p>
-                  <h2 className="text-3xl font-black md:text-4xl">Filmes salvos e histórico recente</h2>
-                </div>
-                <p className="max-w-xl text-slate-400">
-                  Uma área útil para retomar decisões, comparar opções e verificar se o usuário consegue recuperar o que viu antes.
-                </p>
-              </div>
-
-              {watchlistMovies.length > 0 ? (
-                <MovieShelf
-                  title="Salvos para depois"
-                  description="Os filmes que você marcou para revisitar durante a navegação."
-                  movies={watchlistMovies}
-                  watchlistIds={watchlistIds}
-                  onSelectMovie={handleSelectMovie}
-                  onToggleWatchlist={handleToggleWatchlist}
-                />
-              ) : (
-                <div className="rounded-[1.8rem] border border-dashed border-white/15 bg-slate-900/40 p-8 text-slate-300">
-                  <h3 className="text-xl font-bold text-white">Sua lista ainda está vazia</h3>
-                  <p className="mt-2 max-w-2xl text-slate-400">
-                    Use o botão “Salvar” nos cards ou nos detalhes do filme para montar uma lista pessoal de títulos interessantes.
-                  </p>
-                </div>
-              )}
-
-              <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <h3 className="text-2xl font-bold text-white">Vistos recentemente</h3>
-                      <p className="mt-1 text-slate-400">Continue exatamente de onde você parou.</p>
-                    </div>
-                    {recentlyViewedMovies.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setRecentlyViewedIds([])}
-                        className="text-sm text-slate-300 underline underline-offset-4 hover:text-white"
-                      >
-                        Limpar histórico
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="mt-6 space-y-3">
-                    {recentlyViewedMovies.length > 0 ? (
-                      recentlyViewedMovies.map((movie, index) => (
-                        <button
-                          key={movie.id}
-                          type="button"
-                          onClick={() => handleSelectMovie(movie)}
-                          className="flex w-full items-center gap-4 rounded-3xl border border-white/10 bg-slate-950/50 p-4 text-left transition hover:border-sky-400/30 hover:bg-slate-900"
-                        >
-                          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/5 text-sm font-black text-white">
-                            {index + 1}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-lg font-semibold text-white">{movie.title}</p>
-                            <p className="mt-1 text-sm text-slate-400">
-                              {movie.year} • {movie.duration} min • {movie.genre[0] ?? 'Filme'}
-                            </p>
-                          </div>
-                          <div className="rounded-full bg-amber-400/10 px-3 py-1.5 text-sm font-semibold text-amber-300">
-                            {movie.averageRating.toFixed(1)}
-                          </div>
-                        </button>
-                      ))
-                    ) : (
-                      <div className="rounded-3xl border border-dashed border-white/15 bg-slate-950/40 p-6 text-slate-400">
-                        Ainda não há filmes no histórico. Abra alguns detalhes para preencher esta área.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-2xl bg-emerald-400/10 p-3 text-emerald-300">
-                      <Users className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-white">Fluxos úteis do produto</h3>
-                      <p className="text-slate-400">Interações que deixam o site mais rico para navegação real.</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 space-y-4 text-sm leading-7 text-slate-300">
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-                      Monte uma lista pessoal de filmes para comparar decisões sem depender só da memória.
-                    </div>
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-                      Retome os últimos títulos visitados para encurtar o caminho de volta aos detalhes.
-                    </div>
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-                      Publique reviews que ficam salvas neste navegador mesmo após recarregar a página.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section id="avaliacoes" className="scroll-mt-28 space-y-8">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Avaliações</p>
-                  <h2 className="text-3xl font-black md:text-4xl">Como o público está reagindo aos filmes</h2>
-                </div>
-                <p className="max-w-xl text-slate-400">
-                  Esta área resume o catálogo e destaca os filmes que mais chamam atenção da comunidade.
-                </p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
-                  <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Filmes no catálogo</p>
-                  <p className="mt-4 text-4xl font-black">{movies.length}</p>
-                  <p className="mt-2 text-slate-400">Um ponto de partida sólido para explorar títulos populares.</p>
-                </div>
-                <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
-                  <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Média geral</p>
-                  <p className="mt-4 text-4xl font-black">{averageCommunityRating.toFixed(1)}</p>
-                  <p className="mt-2 text-slate-400">A média atual combina a nota base do TMDB com as reviews salvas localmente.</p>
-                </div>
-                <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6">
-                  <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Reviews da comunidade</p>
-                  <p className="mt-4 text-4xl font-black">{totalReviews}</p>
-                  <p className="mt-2 text-slate-400">Esse número cresce a cada avaliação publicada neste navegador.</p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-2xl bg-sky-400/10 p-3 text-sky-300">
-                      <BarChart3 className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-white">Destaques em review</h3>
-                      <p className="text-slate-400">Filmes que estão se destacando em nota e engajamento.</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 space-y-4">
-                    {(highlightedReviews.length > 0 ? highlightedReviews : movies.slice(0, 3)).map((movie, index) => (
-                      <button
-                        key={movie.id}
-                        type="button"
-                        onClick={() => handleSelectMovie(movie)}
-                        className="flex w-full items-center gap-4 rounded-3xl border border-white/10 bg-slate-950/50 p-4 text-left transition hover:border-sky-400/30 hover:bg-slate-900"
-                      >
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/5 text-lg font-black text-white">
-                          {index + 1}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-lg font-semibold text-white">{movie.title}</p>
-                          <p className="mt-1 text-sm text-slate-400">
-                            {movie.userReviews.length > 0
-                              ? `${movie.userReviews.length} review${movie.userReviews.length > 1 ? 's' : ''} enviada${movie.userReviews.length > 1 ? 's' : ''}`
-                              : 'Ainda sem reviews. Seja a primeira pessoa a avaliar.'}
-                          </p>
-                        </div>
-                        <div className="rounded-full bg-amber-400/10 px-3 py-1.5 text-sm font-semibold text-amber-300">
-                          {movie.averageRating.toFixed(1)}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-2xl bg-emerald-400/10 p-3 text-emerald-300">
-                      <Users className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-white">Por que usar o CineReviews</h3>
-                      <p className="text-slate-400">Uma navegação pensada para descoberta, comparação e opinião.</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 space-y-4 text-sm leading-7 text-slate-300">
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-                      Explore filmes por busca, gênero e recomendações sem perder o contexto da navegação.
-                    </div>
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-                      Compare títulos rapidamente antes de abrir os detalhes completos de cada filme.
-                    </div>
-                    <div className="rounded-3xl border border-white/10 bg-slate-950/50 p-4">
-                      Descubra onde assistir, leia a sinopse e compartilhe sua própria avaliação.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section id="catalogo" className="scroll-mt-28 space-y-8">
-              <div className="rounded-[2rem] border border-white/10 bg-slate-900/60 p-6 md:p-8">
-                <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                  <div className="max-w-2xl">
-                    <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Catálogo</p>
-                    <h2 className="mt-2 text-3xl font-black md:text-4xl">Busque por nome, filtre e ordene</h2>
-                    <p className="mt-3 text-slate-400">
-                      A busca consulta o TMDB enquanto você digita, e os filtros ajudam a navegar pelos títulos já carregados com mais precisão.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col gap-3 lg:items-end">
-                    <div className="flex items-center gap-2 rounded-full bg-emerald-400/10 px-4 py-2 text-sm text-emerald-200">
-                      <span className="text-emerald-300">●</span>
-                      {isSearching ? 'Buscando filmes...' : `${activeCatalogMovies.length} resultados visíveis`}
-                    </div>
-                    {(searchQuery || selectedGenre !== 'Todos' || catalogSort !== 'relevance') && (
-                      <button
-                        type="button"
-                        onClick={resetCatalogView}
-                        className="text-sm text-slate-300 underline underline-offset-4 hover:text-white"
-                      >
-                        Limpar busca, filtros e ordenação
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-6 flex flex-col gap-4">
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(event) => handleSearchChange(event.target.value)}
-                      placeholder="Busque por um filme, por exemplo: Interestelar, Barbie, Parasita..."
-                      className="w-full rounded-2xl border border-white/10 bg-slate-950/60 py-4 pl-12 pr-12 text-white placeholder:text-slate-500 outline-none transition focus:border-sky-400/40 focus:bg-slate-950"
-                    />
-                    {searchQuery && (
-                      <button
-                        type="button"
-                        onClick={() => setSearchQuery('')}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-white/10 hover:text-white"
-                        aria-label="Limpar busca"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex flex-wrap gap-2">
-                      {allGenres.map((genre) => (
-                        <button
-                          key={genre}
-                          type="button"
-                          onClick={() => setSelectedGenre(genre)}
-                          className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                            selectedGenre === genre
-                              ? 'bg-sky-400 text-slate-950'
-                              : 'border border-white/10 bg-slate-950/50 text-slate-300 hover:border-sky-400/30 hover:text-white'
-                          }`}
-                        >
-                          {genre}
-                        </button>
-                      ))}
-                    </div>
-
-                    <label className="flex items-center gap-3 text-sm text-slate-300">
-                      Ordenar por
-                      <select
-                        value={catalogSort}
-                        onChange={(event) => setCatalogSort(event.target.value as CatalogSort)}
-                        className="rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-2 text-white outline-none transition focus:border-sky-400/40"
-                      >
-                        <option value="relevance">{searchQuery.trim().length >= 2 ? 'Relevância' : 'Ordem original'}</option>
-                        <option value="rating">Melhor nota</option>
-                        <option value="year">Mais recentes</option>
-                        <option value="title">Título (A-Z)</option>
-                      </select>
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <MovieGrid
-                title={searchQuery.trim().length >= 2 ? 'Resultados da busca' : 'Catálogo popular'}
-                description={
-                  searchQuery.trim().length >= 2
-                    ? 'Filmes encontrados a partir da sua busca atual.'
-                    : selectedGenre === 'Todos'
-                      ? 'Os filmes populares carregados para exploração livre.'
-                      : `Filtrando o catálogo pelo gênero ${selectedGenre}.`
-                }
-                movies={activeCatalogMovies}
-                watchlistIds={watchlistIds}
-                emptyMessage={
-                  searchQuery.trim().length >= 2
-                    ? 'Nenhum filme encontrado para essa busca. Tente outro título.'
-                    : 'Nenhum filme encontrado para esse gênero. Tente outro filtro.'
-                }
-                onSelectMovie={handleSelectMovie}
-                onToggleWatchlist={handleToggleWatchlist}
-              />
-            </section>
-
-            <section id="sobre" className="scroll-mt-28 space-y-8">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.28em] text-sky-200/70">Sobre</p>
-                  <h2 className="text-3xl font-black md:text-4xl">O que é o CineReviews</h2>
-                </div>
-                <p className="max-w-xl text-slate-400">
-                  Uma aplicação focada em descoberta de filmes, análise de detalhes, recomendações e publicação de reviews.
-                </p>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-400/10 text-sky-300">
-                    <Search className="h-6 w-6" />
-                  </div>
-                  <h3 className="mt-5 text-xl font-bold text-white">Busca e descoberta</h3>
-                  <p className="mt-3 text-slate-400">
-                    O usuário encontra filmes pelo nome, filtra por gênero e navega por coleções curadas.
-                  </p>
-                </div>
-
-                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/10 text-amber-300">
-                    <Star className="h-6 w-6" />
-                  </div>
-                  <h3 className="mt-5 text-xl font-bold text-white">Avaliação de filmes</h3>
-                  <p className="mt-3 text-slate-400">
-                    Cada filme pode receber reviews e notas, com persistência local para continuar a experiência depois.
-                  </p>
-                </div>
-
-                <div className="rounded-[1.8rem] border border-white/10 bg-slate-900/60 p-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-emerald-300">
-                    <MessageCircle className="h-6 w-6" />
-                  </div>
-                  <h3 className="mt-5 text-xl font-bold text-white">Assistente CineBot</h3>
-                  <p className="mt-3 text-slate-400">
-                    Um apoio conversacional para recomendações, consulta de nota e orientação de descoberta.
-                  </p>
-                </div>
-              </div>
-            </section>
-          </div>
+          renderCurrentView()
         )}
       </main>
 
@@ -875,7 +904,7 @@ export default function App() {
             <div className="text-center md:text-left">
               <p className="text-slate-400">CineReviews - Dados fornecidos por TMDB</p>
               <p className="mt-1 text-sm text-slate-500">
-                Aplicação React/TypeScript com integração de API para descoberta, detalhes, listas pessoais e reviews de filmes.
+                Seu espaço para descobrir filmes, guardar favoritos e compartilhar opiniões.
               </p>
             </div>
             <div className="flex items-center gap-4">

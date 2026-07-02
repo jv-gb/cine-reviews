@@ -44,7 +44,7 @@ export function Header({
               <div>
                 <h1 className="text-2xl font-black text-white">CineReviews</h1>
                 <p className="text-slate-400 text-sm">
-                  Descubra filmes, salve favoritos e publique reviews.
+                  Descubra filmes, salve favoritos e compartilhe suas opiniões.
                 </p>
               </div>
             </button>
@@ -126,8 +126,8 @@ export function Header({
 
             <div className="text-sm text-slate-400">
               {isMovieSelected
-                ? 'Você está vendo os detalhes de um filme. Use a navegação para voltar às seções da home.'
-                : 'Use a busca, monte sua lista e explore as seções para testar melhor o fluxo do site.'}
+                ? 'Você está vendo os detalhes de um filme. Use o menu para continuar explorando.'
+                : 'Escolha uma área acima para descobrir filmes do seu jeito.'}
             </div>
           </div>
         </div>
