@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Movie, Review } from '../data/mockData';
+import { Movie, Review } from '../types/movie';
 import { ArrowLeft, Star, Clock, Film, Tv, Calendar, User } from 'lucide-react';
 import { ReviewForm } from './ReviewForm';
 

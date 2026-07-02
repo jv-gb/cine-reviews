@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type KeyboardEvent } from 'react';
 import { Movie } from '../types/movie';
 import { Send, Bot, User, Loader2, RefreshCw, X } from 'lucide-react';
 
@@ -184,7 +184,7 @@ export function ChatBot({ movies, isOpen, onClose }: ChatBotProps) {
     ]);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();

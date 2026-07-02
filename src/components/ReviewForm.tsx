@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Star } from 'lucide-react';
 
 interface ReviewFormProps {
@@ -11,7 +11,7 @@ export function ReviewForm({ onSubmit }: ReviewFormProps) {
   const [hoveredRating, setHoveredRating] = useState(0);
   const [comment, setComment] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (userName && rating > 0 && comment) {
       onSubmit({ userName, rating, comment });

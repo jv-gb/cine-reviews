@@ -1,4 +1,4 @@
-import { Movie } from '../data/mockData';
+import { Movie } from '../types/movie';
 import { Star, Clock, PlayCircle, Calendar } from 'lucide-react';
 
 interface MovieCardProps {
