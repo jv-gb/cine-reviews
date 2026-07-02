@@ -1,9 +1,12 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-gradient-to-br from-slate-900 to-slate-950 text-white;
     margin: 0;
@@ -40,12 +43,18 @@
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
 
-/* Scrollbar customizada */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -63,30 +72,28 @@
   background: #475569;
 }
 
-/* Imagens padrão */
 img {
   @apply transition-all duration-300;
 }
 
-/* Focus visível para acessibilidade */
 :focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* Melhorias para mobile */
 @media (max-width: 640px) {
-  input, textarea, button {
-    font-size: 16px; /* Evita zoom no iOS */
+  input,
+  textarea,
+  button {
+    font-size: 16px;
   }
-  
+
   .chat-input-container {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
 }
 
-/* Garantir que elementos não transbordem */
 * {
   box-sizing: border-box;
 }
@@ -95,11 +102,10 @@ textarea {
   resize: vertical;
   min-height: 60px;
 }
-/* Adicione ao final do seu index.css existente */
 
-/* Margens seguras para mobile */
 @supports (padding: max(0px)) {
-  body, .chat-container {
+  body,
+  .chat-container {
     padding-left: min(0px, env(safe-area-inset-left));
     padding-right: min(0px, env(safe-area-inset-right));
     padding-top: min(0px, env(safe-area-inset-top));
@@ -107,7 +113,6 @@ textarea {
   }
 }
 
-/* Melhorias para telas grandes */
 @media (min-width: 1536px) {
   .chat-desktop {
     right: 5%;
@@ -115,7 +120,6 @@ textarea {
   }
 }
 
-/* Transições suaves */
 .chat-enter {
   opacity: 0;
   transform: translateY(20px);

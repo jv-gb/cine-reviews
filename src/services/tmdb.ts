@@ -3,12 +3,12 @@ import axios from 'axios';
 
 const TMDB_API_KEY = (import.meta.env.VITE_TMDB_API_KEY as string | undefined) ?? 'sua_chave_api_aqui';
 const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
-const TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
+const isTmdbConfigured = TMDB_API_KEY !== 'sua_chave_api_aqui';
 
-if (!TMDB_API_KEY || TMDB_API_KEY === 'sua_chave_api_aqui') {
+if (!isTmdbConfigured) {
   console.error(
-    '❌ ERRO: Chave da API do TMDB não configurada!\n' +
-    'Por favor, crie um arquivo .env na raiz do projeto com:\n' +
+    'ERRO: Chave da API do TMDB não configurada.\n' +
+    'Crie um arquivo .env na raiz do projeto com:\n' +
     'VITE_TMDB_API_KEY=sua_chave_aqui\n\n' +
     'Obtenha uma chave em: https://www.themoviedb.org/settings/api'
   );
@@ -68,25 +68,38 @@ export interface TMDBMovieDetails extends TMDBMovie {
   }>;
 }
 
-export interface TMDBWatchProvider {
-  BR?: {
-    flatrate?: Array<{
-      provider_name: string;
-      logo_path: string;
-    }>;
-    rent?: Array<{
-      provider_name: string;
-      logo_path: string;
-    }>;
-    buy?: Array<{
-      provider_name: string;
-      logo_path: string;
-    }>;
+export interface TMDBRegionWatchProvider {
+  flatrate?: Array<{
+    provider_name: string;
+    logo_path: string;
+  }>;
+  rent?: Array<{
+    provider_name: string;
+    logo_path: string;
+  }>;
+  buy?: Array<{
+    provider_name: string;
+    logo_path: string;
+  }>;
+}
+
+export interface TMDBWatchProvidersResponse {
+  id: number;
+  results?: {
+    BR?: TMDBRegionWatchProvider;
   };
+}
+
+function ensureTmdbConfigured() {
+  if (!isTmdbConfigured) {
+    throw new Error('Configure a chave VITE_TMDB_API_KEY para carregar os filmes.');
+  }
 }
 
 class TMDBService {
   async getPopularMovies(): Promise<TMDBMovie[]> {
+    ensureTmdbConfigured();
+
     try {
       const response = await tmdbApi.get('/movie/popular');
       return response.data.results.slice(0, 12);
@@ -97,6 +110,8 @@ class TMDBService {
   }
 
   async getMoviesByGenre(genreId: number): Promise<TMDBMovie[]> {
+    ensureTmdbConfigured();
+
     try {
       const response = await tmdbApi.get('/discover/movie', {
         params: {
@@ -112,6 +127,8 @@ class TMDBService {
   }
 
   async getMovieById(id: number): Promise<TMDBMovieDetails | null> {
+    ensureTmdbConfigured();
+
     try {
       const response = await tmdbApi.get(`/movie/${id}`, {
         params: {
@@ -126,30 +143,26 @@ class TMDBService {
   }
 
   async getWatchProviders(movieId: number): Promise<string[]> {
+    ensureTmdbConfigured();
+
     try {
-      const response = await tmdbApi.get<TMDBWatchProvider>(
+      const response = await tmdbApi.get<TMDBWatchProvidersResponse>(
         `/movie/${movieId}/watch/providers`
       );
-      
-      const providers = response.data.BR;
+
+      const providers = response.data.results?.BR;
       const streamingServices: string[] = [];
-      
+
       if (providers?.flatrate) {
-        streamingServices.push(
-          ...providers.flatrate.map(p => p.provider_name)
-        );
+        streamingServices.push(...providers.flatrate.map((provider) => provider.provider_name));
       }
       if (providers?.rent) {
-        streamingServices.push(
-          ...providers.rent.map(p => p.provider_name)
-        );
+        streamingServices.push(...providers.rent.map((provider) => provider.provider_name));
       }
       if (providers?.buy) {
-        streamingServices.push(
-          ...providers.buy.map(p => p.provider_name)
-        );
+        streamingServices.push(...providers.buy.map((provider) => provider.provider_name));
       }
-      
+
       return [...new Set(streamingServices)];
     } catch (error) {
       console.error('Erro ao buscar provedores:', error);
@@ -158,10 +171,12 @@ class TMDBService {
   }
 
   async searchMovies(query: string): Promise<TMDBMovie[]> {
+    ensureTmdbConfigured();
+
     try {
       const response = await tmdbApi.get('/search/movie', {
         params: {
-          query,
+          query: query.trim(),
         },
       });
       return response.data.results;
@@ -172,6 +187,8 @@ class TMDBService {
   }
 
   async getGenres(): Promise<TMDBGenre[]> {
+    ensureTmdbConfigured();
+
     try {
       const response = await tmdbApi.get('/genre/movie/list');
       return response.data.genres;
@@ -182,6 +199,8 @@ class TMDBService {
   }
 
   async getTrendingMovies(): Promise<TMDBMovie[]> {
+    ensureTmdbConfigured();
+
     try {
       const response = await tmdbApi.get('/trending/movie/week');
       return response.data.results.slice(0, 8);
